@@ -1,0 +1,306 @@
+//example of some shaders compiled
+flat basic.vs flat.fs
+shadow basic.vs shadow.fs
+texture basic.vs texture.fs
+depth quad.vs depth.fs
+multi basic.vs multi.fs
+
+\basic.vs
+
+#version 330 core
+
+in vec3 a_vertex;
+in vec3 a_normal;
+in vec2 a_uv;
+in vec4 a_color;
+
+uniform vec3 u_camera_pos;
+
+uniform mat4 u_model;
+uniform mat4 u_viewprojection;
+
+//this will store the color for the pixel shader
+out vec3 v_position;
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_uv;
+out vec4 v_color;
+
+void main()
+{	
+	//calcule the normal in camera space (the NormalMatrix is like ViewMatrix but without traslation)
+	v_normal = (u_model * vec4( a_normal, 0.0) ).xyz;
+	
+	//calcule the vertex in object space
+	v_position = a_vertex;
+	v_world_position = (u_model * vec4( v_position, 1.0) ).xyz;
+	
+	//store the color in the varying var to use it from the pixel shader
+	v_color = a_color;
+
+	//store the texture coordinates
+	v_uv = a_uv;
+
+	//calcule the position of the vertex using the matrices
+	gl_Position = u_viewprojection * vec4( v_world_position, 1.0 );
+}
+
+\quad.vs
+
+#version 330 core
+
+in vec3 a_vertex;
+in vec2 a_uv;
+out vec2 v_uv;
+
+void main()
+{	
+	v_uv = a_uv;
+	gl_Position = vec4( a_vertex, 1.0 );
+}
+
+
+\flat.fs
+
+#version 330 core
+
+uniform vec4 u_color;
+
+out vec4 FragColor;
+
+void main()
+{
+	
+	FragColor = u_color;
+}
+
+\shadow.fs
+
+#version 330 core
+
+out vec4 FragColor;
+
+void main()
+{
+	
+	FragColor = vec4(0.0);
+}
+
+
+\texture.fs
+
+#version 330 core
+
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec4 v_color;
+
+uniform vec4 u_color;//material->color
+uniform sampler2D u_texture;//texture
+uniform float u_time;
+uniform float u_alpha_cutoff;//alpha threshold
+uniform int u_light_type;
+uniform float u_spotCutOff;
+uniform float u_exponent;
+uniform float u_light_maxdist;
+uniform float u_light_intensity;
+
+
+uniform vec3 u_camera_position;//camera->eye
+uniform vec3 u_light_vector;
+uniform vec3 u_light_position;
+uniform vec3 u_ambient_light;
+uniform vec3 u_light_color;//diffuse
+
+
+uniform sampler2D shadowmap;
+uniform mat4 u_shadow_viewproj;
+uniform float u_shadow_bias;
+
+out vec4 FragColor;
+
+void main()
+{
+
+	vec2 uv = v_uv;
+	vec4 color = u_color;
+	color *= texture2D( u_texture, uv );
+	if(color.a < u_alpha_cutoff)
+		discard;
+
+	//PHONG
+
+	vec3 light = vec3(0.0);//here we can store the total amount of light
+	light += u_ambient_light;//lets add the ambient light first
+	vec3 N = normalize( v_normal );//interpolated so normalization is lost
+	
+	//here we store the L vector
+	vec3 L;
+	float spotfactor=0.0;
+	float light_distance;
+	
+	//depending on the light type...
+	
+	if( u_light_type == 0 ) //directional  light
+	{
+		L = u_light_vector;
+	}
+	else //point and spot light
+	{
+		L = u_light_position - v_world_position;//vector from the point to the light
+		light_distance = length(L);
+		L = normalize(L);//we ignore the light distance for now
+	}
+	
+	float att_factor = u_light_maxdist - light_distance;//compute a linear attenuation factor
+	att_factor /= u_light_maxdist;//normalize factor
+	att_factor = max( att_factor, 0.0 );//ignore negative values
+	
+	float NdotL = dot(N,L);//compute how much is aligned
+	NdotL = clamp( NdotL, 0.0, 1.0 );//light cannot be negative (but the dot product can)
+	
+	light += ( NdotL * u_light_color) * att_factor;//store the amount of diffuse light
+
+	if(u_light_type==1){ //spotlight
+		
+		vec3 D = normalize(u_light_vector);
+		float spotCosine = dot(D,-L);
+		spotCosine=clamp(spotCosine,0.0,1.0);
+		
+		if (spotCosine >= u_spotCutOff ) { 
+			spotfactor=pow(spotCosine,u_exponent);
+		}else{
+			spotfactor=0.1;
+		}
+		light*=spotfactor;
+	}
+	
+	
+	/***********************************************/
+	
+	vec4 proj_pos = u_shadow_viewproj * vec4(v_world_position,1.0);	//project our 3D position to the shadowmap
+
+	vec2 shadow_uv = proj_pos.xy / proj_pos.w;	//from homogeneus space to clip space
+
+	shadow_uv = shadow_uv * 0.5 + vec2(0.5);	//from clip space to uv space
+
+	float real_depth = (proj_pos.z - u_shadow_bias) / proj_pos.w;	//get point depth (from -1 to 1)
+	
+	real_depth = real_depth * 0.5 + 0.5;	//normalize from [-1..+1] to [0..+1]
+
+	float shadow_depth = texture( shadowmap, shadow_uv).x;	//read depth from depth buffer in [0..+1]
+
+	//compute final shadow factor by comparing
+	float shadow_factor = 1.0;
+	
+	if( shadow_depth < real_depth )
+		shadow_factor = 0.1;
+	
+	if(	shadow_uv.x < 0.0 || shadow_uv.x > 1.0 ||shadow_uv.y < 0.0 || shadow_uv.y > 1.0)
+		shadow_factor=1.0;
+
+	//it is before near or behind far plane
+	if(real_depth < 0.0 || real_depth > 1.0)
+		shadow_factor= 1.0;
+	
+	light*=shadow_factor;
+	
+	/***********************************************/
+	
+	//apply to final pixel color
+	
+	color.xyz *= light*u_light_intensity; 
+
+	FragColor = color;
+}
+
+
+\multi.fs
+
+#version 330 core
+
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+
+uniform vec4 u_color;
+uniform sampler2D u_texture;
+uniform float u_time;
+uniform float u_alpha_cutoff;
+
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 NormalColor;
+
+void main()
+{
+	vec2 uv = v_uv;
+	vec4 color = u_color;
+	color *= texture( u_texture, uv );
+
+	if(color.a < u_alpha_cutoff)
+		discard;
+
+	vec3 N = normalize(v_normal);
+
+	FragColor = color;
+	NormalColor = vec4(N,1.0);
+}
+
+
+\depth.fs
+
+#version 330 core
+
+uniform vec2 u_camera_nearfar;
+uniform sampler2D u_texture; //depth map
+in vec2 v_uv;
+out vec4 FragColor;
+
+void main()
+{
+	float n = u_camera_nearfar.x;
+	float f = u_camera_nearfar.y;
+	float z = texture2D(u_texture,v_uv).x;
+	float color = n * (z + 1.0) / (f + n - z * (f - n));
+	FragColor = vec4(color);
+}
+
+
+\instanced.vs
+
+#version 330 core
+
+in vec3 a_vertex;
+in vec3 a_normal;
+in vec2 a_uv;
+
+in mat4 u_model;
+
+uniform vec3 u_camera_pos;
+
+uniform mat4 u_viewprojection;
+
+//this will store the color for the pixel shader
+out vec3 v_position;
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_uv;
+
+void main()
+{	
+	//calcule the normal in camera space (the NormalMatrix is like ViewMatrix but without traslation)
+	v_normal = (u_model * vec4( a_normal, 0.0) ).xyz;
+	
+	//calcule the vertex in object space
+	v_position = a_vertex;
+	v_world_position = (u_model * vec4( a_vertex, 1.0) ).xyz;
+	
+	//store the texture coordinates
+	v_uv = a_uv;
+
+	//calcule the position of the vertex using the matrices
+	gl_Position = u_viewprojection * vec4( v_world_position, 1.0 );
+}
