@@ -1,6 +1,7 @@
 #pragma once
 #include "prefab.h"
 #include "scene.h"
+#include "fbo.h"
 
 //forward declarations
 class Camera;
@@ -16,8 +17,12 @@ namespace GTR {
 	{
 
 	public:
+		FBO* gbuffers_fbo;
+		
+		Renderer();
 
-		//...
+		void renderDeferred(Camera * camera);
+
 		void renderScene(Camera * camera);
 
 		void renderPrefab(const Matrix44 & model, GTR::Prefab * prefab, Camera * camera);
@@ -27,6 +32,8 @@ namespace GTR {
 		void renderMeshWithMaterial(const Matrix44 model, Mesh* mesh, GTR::Material* material, Camera* camera);
 
 		void renderMeshWithLight(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera);
+
+		void renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera);
 
 		void renderShadowmap();
 	};

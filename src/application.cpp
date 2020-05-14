@@ -18,7 +18,7 @@
 #include <cstdio>
 
 Application* Application::instance = nullptr;
-Vector4 bg_color(0, 0, 0, 1.0);
+Vector4 bg_color(0.1, 0.1, 0.1, 1.0);
 
 Camera* camera = nullptr;
 GTR::Prefab* prefab_car = nullptr;
@@ -70,8 +70,8 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	lamp = new PrefabEntity(prefab_lamp, true);
 	//Lets load some object to render
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	car->model.translate(0, 0, -150);
-	car->model.rotate(45 * DEG2RAD, Vector3(0, 1, 0));
+	//car->model.translate(0, 0, -150);
+	//car->model.rotate(45 * DEG2RAD, Vector3(0, 1, 0));
 	car2->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
 	car2->model.translate(100, 0, -50);
 	house->prefab = GTR::Prefab::Get("data/prefabs/house/scene.gltf");
@@ -106,15 +106,15 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	plane->model.setTranslation(0.0, 3, 0.0);
 
 	//add entities
-	Scene::scene->entities.push_back(plane);
+	//Scene::scene->entities.push_back(plane);
 	Scene::scene->entities.push_back(car);
-	Scene::scene->entities.push_back(car2);
-	Scene::scene->entities.push_back(house);
-	Scene::scene->entities.push_back(lamp);
-	Scene::scene->entities.push_back(spot);
-	Scene::scene->entities.push_back(directional);
-	Scene::scene->entities.push_back(point);
-	Scene::scene->entities.push_back(point2);
+	//Scene::scene->entities.push_back(car2);
+	//Scene::scene->entities.push_back(house);
+	//Scene::scene->entities.push_back(lamp);
+	//Scene::scene->entities.push_back(spot);
+	//Scene::scene->entities.push_back(directional);
+	//Scene::scene->entities.push_back(point);
+	//Scene::scene->entities.push_back(point2);
 
 	// Create camera
 	camera = new Camera();
@@ -137,11 +137,11 @@ void Application::render(void)
 	//set the clear color (the background color)
 	glClearColor(bg_color.x, bg_color.y, bg_color.z, bg_color.w );
 
-	if (!temp)
-		renderer->renderShadowmap();
-	temp = true;
+	//if (!temp)
+		//renderer->renderShadowmap();
+	//temp = true;
 
-	fbo->bind();
+	//fbo->bind();
 	// Clear the color and the depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     checkGLErrors();
@@ -159,7 +159,7 @@ void Application::render(void)
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	renderer->renderScene(camera);
+	renderer->renderDeferred(camera);
 
 	fbo->unbind();
 	glDisable(GL_CULL_FACE);
@@ -170,7 +170,7 @@ void Application::render(void)
 	shader_depth->setUniform("u_camera_nearfar", Vector2(spot->light_camera->near_plane, spot->light_camera->far_plane));
 	*/
 
-	fbo->color_textures[0]->toViewport();
+	//fbo->color_textures[0]->toViewport();
 	//glViewport(0, 0, 250, 250);
 	//spot->shadow_fbo->depth_texture->toViewport(shader_depth);
 	//glViewport(250, 0, 250, 250);
