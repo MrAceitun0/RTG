@@ -68,7 +68,7 @@ void Renderer::renderDeferred(Camera* camera)
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
 
-	glViewport(0, 0, w*0.5, h*0.5);
+	/*glViewport(0, 0, w*0.5, h*0.5);
 	gbuffers_fbo->color_textures[0]->toViewport();
 
 	glViewport(w*0.5, 0, w*0.5, h*0.5);
@@ -78,10 +78,65 @@ void Renderer::renderDeferred(Camera* camera)
 	glViewport(0, h*0.5, w*0.5, h*0.5);
 	gbuffers_fbo->color_textures[2]->toViewport();
 
+	Shader* shader_depth = Shader::Get("depth");
+	shader_depth->enable();
+	shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
+	
 	glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
-	gbuffers_fbo->depth_texture->toViewport();
+	gbuffers_fbo->depth_texture->toViewport(shader_depth);
 
-	glViewport(0, 0, w, h);
+	glViewport(0, 0, w, h);*/
+
+	// create and FBO
+	FBO *illumination_fbo = new FBO();
+
+	//create 3 textures of 4 components
+	illumination_fbo->create(w, h,
+		1, 			//three textures
+		GL_RGB, 		//three channels
+		GL_UNSIGNED_BYTE, //1 byte
+		false);		//add depth_texture
+
+	//start rendering to the illumination fbo
+	illumination_fbo->bind();
+
+	//we need a fullscreen quad
+	Mesh* quad = Mesh::getQuad();
+
+	//we need a shader specially for this task, lets call it "deferred"
+	Shader* sh = Shader::Get("deferred");
+	sh->enable();
+
+	//pass the gbuffers to the shader
+	sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
+	sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
+	sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
+	sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+
+	//pass the inverse projection of the camera to reconstruct world pos.
+	Matrix44 inv_vp = camera->viewprojection_matrix;
+	inv_vp.inverse();
+	sh->setUniform("u_inverse_viewprojection", inv_vp);
+	//pass the inverse window resolution, this may be useful
+	sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
+
+	//pass all the information about the light and ambient…
+	//...
+
+	//disable depth test and blend!!
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+
+	//render a fullscreen quad
+	quad->render(GL_TRIANGLES);
+	//stop rendering to the fbo, render to screen
+	illumination_fbo->unbind();
+
+	//be sure blending is not active
+	//glDisable(GL_BLEND);
+
+	//and render the texture into the screen
+	illumination_fbo->color_textures[0]->toViewport();
 }
 
 void GTR::Renderer::renderScene(Camera * camera)
@@ -400,7 +455,7 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 	else
 		glEnable(GL_CULL_FACE);
 
-	shader = Shader::Get("deferred");
+	shader = Shader::Get("multi");
 
 	//no shader? then nothing to render
 	if (!shader)

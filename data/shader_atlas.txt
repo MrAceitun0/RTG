@@ -4,6 +4,7 @@ shadow basic.vs shadow.fs
 texture basic.vs texture.fs
 depth quad.vs depth.fs
 multi basic.vs multi.fs
+deferred quad.vs deferred.fs
 
 \basic.vs
 
@@ -233,6 +234,7 @@ uniform float u_alpha_cutoff;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 NormalColor;
+layout(location = 2) out vec4 ExtraColor;
 
 void main()
 {
@@ -240,13 +242,49 @@ void main()
 	vec4 color = u_color;
 	color *= texture( u_texture, uv );
 
-	if(color.a < u_alpha_cutoff)
+	if(	color.a < 0.9 && floor(mod(gl_FragCoord.x,2.0)) !=floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
 
 	vec3 N = normalize(v_normal);
 
 	FragColor = color;
-	NormalColor = vec4(N,1.0);
+	NormalColor = vec4(N*0.5 + vec3(0.5),1.0);
+	//ExtraColor = material_properties;
+}
+
+\deferred.fs
+
+#version 330 core
+
+uniform sampler2D u_color_texture;
+uniform sampler2D u_normal_texture;
+uniform sampler2D u_extra_texture;
+uniform sampler2D u_depth_texture;
+uniform mat4 u_inverse_viewprojection;
+uniform vec2 u_iRes;
+//pass here all the uniforms required for illumination...
+layout(location = 0) out vec4 FragColor;
+
+void main()
+{
+	vec2 uv = gl_FragCoord.xy * u_iRes.xy; //extract uvs from pixel screenpos
+	vec3 color = texture( u_color_texture, uv ).xyz;
+	
+	//normals must be converted from 0..1 to -1..+1
+	
+	vec3 N = texture( u_normal_texture, uv ).xyz * 2.0 - 1.0;
+	N = normalize(N); //always normalize in case of data loss
+	
+	//reconstruct world position from depth and inv. viewproj
+	
+	float depth = texture( u_depth_texture, uv ).x;
+	vec4 screen_pos = vec4(uv.x*2.0-1.0, uv.y*2.0-1.0, depth*2.0-1.0, 1.0);
+	vec4 proj_worldpos = u_inverse_viewprojection * screen_pos;
+	vec3 worldpos = proj_worldpos.xyz / proj_worldpos.w;
+	
+	//now do your illumination using worldpos and the normal...
+	FragColor= vec4(color,1.0);
+	
 }
 
 

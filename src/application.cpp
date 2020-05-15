@@ -141,7 +141,7 @@ void Application::render(void)
 		//renderer->renderShadowmap();
 	//temp = true;
 
-	//fbo->bind();
+	fbo->bind();
 	// Clear the color and the depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     checkGLErrors();
