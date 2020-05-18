@@ -80,7 +80,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	lamp->prefab = GTR::Prefab::Get("data/prefabs/lamp/scene.gltf");
 	lamp->model.scale(10.0, 10.0, 10.0);
 
-	point = new Light(Vector3(1, 0, 1), light_type::POINT_L, true, 0, Vector3(0, 350, 450), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point = new Light(Vector3(1, 0, 1), light_type::POINT_L, true, 0, Vector3(0, 350, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point->intensity = 2;
 	point2 = new Light(Vector3(0, 1, 0), light_type::POINT_L, true, 0, Vector3(0, 350, 300), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point2->intensity = 2;
