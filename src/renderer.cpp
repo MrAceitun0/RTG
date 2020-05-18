@@ -100,35 +100,47 @@ void Renderer::renderDeferred(Camera* camera)
 	//start rendering to the illumination fbo
 	illumination_fbo->bind();
 
-	//we need a fullscreen quad
-	Mesh* quad = Mesh::getQuad();
+	bool firstLight = true;
+	std::vector<Light*> light_vector = Scene::scene->getVisibleLights();
+	for (int i = 0; i < light_vector.size(); i++)
+	{
+		//we need a fullscreen quad
+		Mesh* quad = Mesh::getQuad();
 
-	//we need a shader specially for this task, lets call it "deferred"
-	Shader* sh = Shader::Get("deferred");
-	sh->enable();
+		//we need a shader specially for this task, lets call it "deferred"
+		Shader* sh = Shader::Get("deferred");
+		sh->enable();
 
-	//pass the gbuffers to the shader
-	sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
-	sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
-	sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
-	sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+		//pass the gbuffers to the shader
+		sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
+		sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
+		sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
+		sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
 
-	//pass the inverse projection of the camera to reconstruct world pos.
-	Matrix44 inv_vp = camera->viewprojection_matrix;
-	inv_vp.inverse();
-	sh->setUniform("u_inverse_viewprojection", inv_vp);
-	//pass the inverse window resolution, this may be useful
-	sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
+		//pass the inverse projection of the camera to reconstruct world pos.
+		Matrix44 inv_vp = camera->viewprojection_matrix;
+		inv_vp.inverse();
+		sh->setUniform("u_inverse_viewprojection", inv_vp);
+		//pass the inverse window resolution, this may be useful
+		sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
 
-	//pass all the information about the light and ambient…
-	//...
+		//pass all the information about the light and ambient…
+		if (firstLight)
+		{
+			firstLight = false;
+			sh->setUniform("u_ambient", Scene::scene->ambient);
+		}
 
-	//disable depth test and blend!!
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
+		light_vector[i]->setUniforms(sh);
 
-	//render a fullscreen quad
-	quad->render(GL_TRIANGLES);
+		//disable depth test and blend!!
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
+
+		//render a fullscreen quad
+		quad->render(GL_TRIANGLES);
+	}
+
 	//stop rendering to the fbo, render to screen
 	illumination_fbo->unbind();
 

@@ -88,7 +88,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(-60, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	spot->has_shadow = true;
 	spot->intensity = 3;
-	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), INFINITY); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	directional->has_shadow = true;
 	directional->model.rotate(-45 * DEG2RAD, Vector3(1, 0, 0));
 	directional->model.rotate(-45 * DEG2RAD, Vector3(0, 1, 0));
@@ -112,7 +112,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//Scene::scene->entities.push_back(house);
 	//Scene::scene->entities.push_back(lamp);
 	//Scene::scene->entities.push_back(spot);
-	//Scene::scene->entities.push_back(directional);
+	Scene::scene->entities.push_back(directional);
 	//Scene::scene->entities.push_back(point);
 	//Scene::scene->entities.push_back(point2);
 
