@@ -86,7 +86,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	point2->intensity = 2;
 
 	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(300, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
-	//spot->has_shadow = true;
+	spot->has_shadow = false;
 	spot->intensity = 3;
 	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), INFINITY); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	directional->has_shadow = true;

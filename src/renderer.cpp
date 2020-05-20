@@ -16,6 +16,7 @@ bool render_shadowmap = false;
 Renderer::Renderer()
 {
 	gbuffers_fbo = NULL;
+	illumination_fbo = NULL;
 }
 
 void Renderer::renderDeferred(Camera* camera)
@@ -88,18 +89,23 @@ void Renderer::renderDeferred(Camera* camera)
 
 	glViewport(0, 0, w, h);*/
 
-	// create and FBO
-	FBO *illumination_fbo = new FBO();
+	if (!illumination_fbo)
+	{
+		illumination_fbo = new FBO();
 
-	//create 3 textures of 4 components
-	illumination_fbo->create(w, h,
-		1, 			//three textures
-		GL_RGB, 		//three channels
-		GL_UNSIGNED_BYTE, //1 byte
-		false);		//add depth_texture
+		illumination_fbo->create(w, h,
+			1, 			
+			GL_RGB, 		
+			GL_UNSIGNED_BYTE, 
+			false);		
+	}
 
 	//start rendering to the illumination fbo
 	illumination_fbo->bind();
+
+	//clear GB0 with the color (and depth)
+	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	bool firstLight = true;
 	//we need a fullscreen quad
@@ -108,6 +114,8 @@ void Renderer::renderDeferred(Camera* camera)
 	//we need a shader specially for this task, lets call it "deferred"
 	Shader* sh = Shader::Get("deferred");
 	sh->enable();
+
+	sh->setUniform("u_camera_position", camera->eye);
 
 	//pass the gbuffers to the shader
 	sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
@@ -135,7 +143,7 @@ void Renderer::renderDeferred(Camera* camera)
 			firstLight = false;
 			sh->setUniform("u_ambient", Scene::scene->ambient);
 		}
-		
+
 		light_vector[i]->setUniforms(sh);
 		if (light_vector[i]->has_shadow) {
 			//get the depth texture from the FBO
@@ -518,6 +526,10 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		shader->setUniform("u_color", material->color);
 		if (texture)
 			shader->setUniform("u_texture", texture, 0);
+
+		shader->setUniform("u_metal_roughness", material->metallic_roughness_texture, 1);
+		shader->setUniform("u_metalness", 0.5f);
+		shader->setUniform("u_roughness", 0.5f);
 
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);

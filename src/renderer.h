@@ -18,7 +18,8 @@ namespace GTR {
 
 	public:
 		FBO* gbuffers_fbo;
-		
+		FBO* illumination_fbo;
+
 		Renderer();
 
 		void renderDeferred(Camera * camera);
