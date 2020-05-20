@@ -276,6 +276,9 @@ uniform vec3 u_light_position;
 uniform vec3 u_ambient_light;
 uniform vec3 u_light_color;//diffuse
 
+uniform sampler2D shadowmap;
+uniform mat4 u_shadow_viewproj;
+uniform float u_shadow_bias;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -303,15 +306,15 @@ vec3 PhongFunc(vec3 N, vec3 worldpos){
 		L = normalize(L);//we ignore the light distance for now
 	}
 	
-	/*float att_factor = u_light_maxdist - light_distance;//compute a linear attenuation factor
+	float att_factor = u_light_maxdist - light_distance;//compute a linear attenuation factor
 	att_factor /= u_light_maxdist;//normalize factor
-	att_factor = max( att_factor, 0.0 );//ignore negative values*/
+	att_factor = max( att_factor, 0.0 );//ignore negative values
 	
 	float NdotL = dot(N,L);//compute how much is aligned
 	NdotL = clamp( NdotL, 0.0, 1.0 );//light cannot be negative (but the dot product can)
 	
-	//light += ( NdotL * u_light_color) * att_factor;//store the amount of diffuse light
-	light += ( NdotL * u_light_color);//store the amount of diffuse light
+	light += ( NdotL * u_light_color) * att_factor;//store the amount of diffuse light
+	//light += ( NdotL * u_light_color);//store the amount of diffuse light
 	
 	if(u_light_type==1){ //spotlight
 		
@@ -329,6 +332,37 @@ vec3 PhongFunc(vec3 N, vec3 worldpos){
 	return light;
 };
 //******************************************************//
+//********************SHADOW****************************//
+float getShadow(vec3 worldpos){
+	vec4 proj_pos = u_shadow_viewproj * vec4(worldpos,1.0);	//project our 3D position to the shadowmap
+
+	vec2 shadow_uv = proj_pos.xy / proj_pos.w;	//from homogeneus space to clip space
+
+	shadow_uv = shadow_uv * 0.5 + vec2(0.5);	//from clip space to uv space
+
+	float real_depth = (proj_pos.z - u_shadow_bias) / proj_pos.w;	//get point depth (from -1 to 1)
+	
+	real_depth = real_depth * 0.5 + 0.5;	//normalize from [-1..+1] to [0..+1]
+
+	float shadow_depth = texture( shadowmap, shadow_uv).x;	//read depth from depth buffer in [0..+1]
+
+	//compute final shadow factor by comparing
+	float shadow_factor = 1.0;
+	
+	if( shadow_depth < real_depth )
+		shadow_factor = 0.1;
+	
+	if(	shadow_uv.x < 0.0 || shadow_uv.x > 1.0 ||shadow_uv.y < 0.0 || shadow_uv.y > 1.0)
+		shadow_factor=1.0;
+
+	//it is before near or behind far plane
+	if(real_depth < 0.0 || real_depth > 1.0)
+		shadow_factor= 1.0;
+	
+	return shadow_factor;
+}
+//***********************************************************//
+
 void main()
 {
 	vec2 uv = gl_FragCoord.xy * u_iRes.xy; //extract uvs from pixel screenpos
@@ -348,6 +382,9 @@ void main()
 	
 	//now do your illumination using worldpos and the normal...
 	vec3 phong=PhongFunc(N,worldpos);
+	float shadow= getShadow(worldpos);
+	phong*=shadow;
+	
 	color.xyz *= phong*u_light_intensity; 
 	
 	FragColor= vec4(color,1.0);

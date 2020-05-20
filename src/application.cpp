@@ -80,13 +80,13 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	lamp->prefab = GTR::Prefab::Get("data/prefabs/lamp/scene.gltf");
 	lamp->model.scale(10.0, 10.0, 10.0);
 
-	point = new Light(Vector3(1, 0, 1), light_type::POINT_L, true, 0, Vector3(0, 350, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point = new Light(Vector3(1, 0, 1), light_type::POINT_L, true, 0, Vector3(0, 250, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point->intensity = 2;
 	point2 = new Light(Vector3(0, 1, 0), light_type::POINT_L, true, 0, Vector3(0, 350, 300), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point2->intensity = 2;
 
-	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(-60, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
-	spot->has_shadow = true;
+	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(300, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	//spot->has_shadow = true;
 	spot->intensity = 3;
 	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), INFINITY); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	directional->has_shadow = true;
@@ -106,14 +106,14 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	plane->model.setTranslation(0.0, 3, 0.0);
 
 	//add entities
-	//Scene::scene->entities.push_back(plane);
+	Scene::scene->entities.push_back(plane);
 	Scene::scene->entities.push_back(car);
 	//Scene::scene->entities.push_back(car2);
 	//Scene::scene->entities.push_back(house);
 	//Scene::scene->entities.push_back(lamp);
-	//Scene::scene->entities.push_back(spot);
+	Scene::scene->entities.push_back(spot);
 	Scene::scene->entities.push_back(directional);
-	//Scene::scene->entities.push_back(point);
+	Scene::scene->entities.push_back(point);
 	//Scene::scene->entities.push_back(point2);
 
 	// Create camera
@@ -137,11 +137,11 @@ void Application::render(void)
 	//set the clear color (the background color)
 	glClearColor(bg_color.x, bg_color.y, bg_color.z, bg_color.w );
 
-	//if (!temp)
-		//renderer->renderShadowmap();
-	//temp = true;
+	if (!temp)
+		renderer->renderShadowmap();
+	temp = true;
 
-	fbo->bind();
+	//fbo->bind();
 	// Clear the color and the depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     checkGLErrors();
@@ -161,7 +161,7 @@ void Application::render(void)
 
 	renderer->renderDeferred(camera);
 
-	fbo->unbind();
+	//fbo->unbind();
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 

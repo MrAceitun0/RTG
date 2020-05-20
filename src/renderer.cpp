@@ -63,7 +63,8 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//render everything 
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
-	renderPrefab(prefab_vector[0]->model, prefab_vector[0]->prefab, camera);
+	for(int i=0;i<prefab_vector.size();i++)
+		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera);
 
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
@@ -101,28 +102,32 @@ void Renderer::renderDeferred(Camera* camera)
 	illumination_fbo->bind();
 
 	bool firstLight = true;
+	//we need a fullscreen quad
+	Mesh* quad = Mesh::getQuad();
+
+	//we need a shader specially for this task, lets call it "deferred"
+	Shader* sh = Shader::Get("deferred");
+	sh->enable();
+
+	//pass the gbuffers to the shader
+	sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
+	sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
+	sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
+	sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+
+	//pass the inverse projection of the camera to reconstruct world pos.
+	Matrix44 inv_vp = camera->viewprojection_matrix;
+	inv_vp.inverse();
+	sh->setUniform("u_inverse_viewprojection", inv_vp);
+	//pass the inverse window resolution, this may be useful
+	sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
+
 	std::vector<Light*> light_vector = Scene::scene->getVisibleLights();
 	for (int i = 0; i < light_vector.size(); i++)
 	{
-		//we need a fullscreen quad
-		Mesh* quad = Mesh::getQuad();
-
-		//we need a shader specially for this task, lets call it "deferred"
-		Shader* sh = Shader::Get("deferred");
-		sh->enable();
-
-		//pass the gbuffers to the shader
-		sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
-		sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
-		sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
-		sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
-
-		//pass the inverse projection of the camera to reconstruct world pos.
-		Matrix44 inv_vp = camera->viewprojection_matrix;
-		inv_vp.inverse();
-		sh->setUniform("u_inverse_viewprojection", inv_vp);
-		//pass the inverse window resolution, this may be useful
-		sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+		
 
 		//pass all the information about the light and ambient…
 		if (firstLight)
@@ -130,12 +135,26 @@ void Renderer::renderDeferred(Camera* camera)
 			firstLight = false;
 			sh->setUniform("u_ambient", Scene::scene->ambient);
 		}
-
+		
 		light_vector[i]->setUniforms(sh);
+		if (light_vector[i]->has_shadow) {
+			//get the depth texture from the FBO
+			Texture* shadowmap = light_vector[i]->shadow_fbo->depth_texture;
 
-		//disable depth test and blend!!
+			//first time we create the FBO
+			sh->setTexture("shadowmap", shadowmap, 8);
+
+			//also get the viewprojection from the light
+			Matrix44 shadow_proj = light_vector[i]->light_camera->viewprojection_matrix;
+
+			//pass it to the shader
+			sh->setUniform("u_shadow_viewproj", shadow_proj);
+
+			//we will also need the shadow bias
+			sh->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
+
+		}
 		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
 
 		//render a fullscreen quad
 		quad->render(GL_TRIANGLES);
@@ -146,7 +165,8 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//be sure blending is not active
 	//glDisable(GL_BLEND);
-
+	//disable depth test and blend!!
+	glDisable(GL_BLEND);
 	//and render the texture into the screen
 	illumination_fbo->color_textures[0]->toViewport();
 }
@@ -451,48 +471,65 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 	//texture = material->metallic_roughness_texture;
 	//texture = material->normal_texture;
 	//texture = material->occlusion_texture;
+	Shader* shader_shadow = NULL;
+	shader_shadow = Shader::Get("shadow");
 
-	//select the blending
-	if (material->alpha_mode == GTR::AlphaMode::BLEND)
-	{
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	if (render_shadowmap) { //if we are rendering shadowmap
+
+		shader_shadow->enable();
+
+		//upload uniforms
+		shader_shadow->setUniform("u_viewprojection", camera->viewprojection_matrix);
+		shader_shadow->setUniform("u_camera_position", camera->eye);
+		shader_shadow->setUniform("u_model", model);
+
+		mesh->render(GL_TRIANGLES);
+		shader_shadow->disable();
 	}
-	else
+	else {
+		//select the blending
+		if (material->alpha_mode == GTR::AlphaMode::BLEND)
+		{
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		}
+		else
+			glDisable(GL_BLEND);
+
+		//select if render both sides of the triangles
+		if (material->two_sided)
+			glDisable(GL_CULL_FACE);
+		else
+			glEnable(GL_CULL_FACE);
+
+		shader = Shader::Get("multi");
+
+		//no shader? then nothing to render
+		if (!shader)
+			return;
+		shader->enable();
+
+		//upload uniforms
+		shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+		shader->setUniform("u_camera_position", camera->eye);
+		shader->setUniform("u_model", model);
+		shader->setUniform("u_camera_near_far", Vector2(camera->near_plane, camera->far_plane));
+
+		shader->setUniform("u_color", material->color);
+		if (texture)
+			shader->setUniform("u_texture", texture, 0);
+
+		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
+		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
+
+		//do the draw call that renders the mesh into the screen
+		mesh->render(GL_TRIANGLES);
+
+		//disable shader
+		shader->disable();
+
+		//set the render state as it was before to avoid problems with future renders
 		glDisable(GL_BLEND);
-
-	//select if render both sides of the triangles
-	if (material->two_sided)
-		glDisable(GL_CULL_FACE);
-	else
-		glEnable(GL_CULL_FACE);
-
-	shader = Shader::Get("multi");
-
-	//no shader? then nothing to render
-	if (!shader)
-		return;
-	shader->enable();
-
-	//upload uniforms
-	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-	shader->setUniform("u_camera_position", camera->eye);
-	shader->setUniform("u_model", model);
-	shader->setUniform("u_camera_near_far", Vector2(camera->near_plane, camera->far_plane));
-
-	shader->setUniform("u_color", material->color);
-	if (texture)
-		shader->setUniform("u_texture", texture, 0);
-
-	//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
-	shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
-
-	//do the draw call that renders the mesh into the screen
-	mesh->render(GL_TRIANGLES);
-
-	//disable shader
-	shader->disable();
-
-	//set the render state as it was before to avoid problems with future renders
-	glDisable(GL_BLEND);
+	}
+	
 }
