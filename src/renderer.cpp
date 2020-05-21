@@ -129,7 +129,7 @@ void Renderer::renderDeferred(Camera* camera)
 	sh->setUniform("u_inverse_viewprojection", inv_vp);
 	//pass the inverse window resolution, this may be useful
 	sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
-
+	sh->setUniform("u_pbr", Scene::scene->pbr);
 	std::vector<Light*> light_vector = Scene::scene->getVisibleLights();
 	for (int i = 0; i < light_vector.size(); i++)
 	{
@@ -538,7 +538,7 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		else
 			shader->setUniform("u_hasmetal", false);
 		
-		shader->setUniform("u_metalness", 0.5f);
+		shader->setUniform("u_metalness", 0.2f);
 		shader->setUniform("u_roughness", 0.5f);
 
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)

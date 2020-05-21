@@ -329,6 +329,7 @@ void Application::renderDebugGUI(void)
 
 		ImGui::DragFloat3("Ambient", &(Scene::scene->ambient.x), 0.05f, 0.0f, 1.0f);
 		ImGui::Checkbox("reload", &temp);
+		ImGui::Checkbox("pbr", &(Scene::scene->pbr));
 
 
 		if (ImGui::TreeNode(directional, "Directional Light")) {

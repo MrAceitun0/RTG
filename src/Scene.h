@@ -12,6 +12,7 @@ public:
 
 	std::vector<BaseEntity*> entities;
 	Vector3 ambient=Vector3(.1,.1,.1);
+	bool pbr = false;
 	
 	Scene() { scene = this; };
 
