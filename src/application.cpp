@@ -89,11 +89,11 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(300, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	spot->has_shadow = false;
 	spot->intensity = 3;
-	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), INFINITY); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), 9999999); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	directional->has_shadow = true;
-	directional->model.rotate(-45 * DEG2RAD, Vector3(1, 0, 0));
+	directional->model.rotate(-90 * DEG2RAD, Vector3(1, 0, 0));
 	directional->model.rotate(-45 * DEG2RAD, Vector3(0, 1, 0));
-	directional->shadow_bias = 0.005;
+	directional->shadow_bias = 0.001;
 	
 	prefab_plane = new GTR::Prefab();
 	Mesh *p = new Mesh();
@@ -115,7 +115,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	Scene::scene->entities.push_back(spot);
 	Scene::scene->entities.push_back(directional);
 	Scene::scene->entities.push_back(point);
-	//Scene::scene->entities.push_back(point2);
+	Scene::scene->entities.push_back(point2);
 
 	// Create camera
 	camera = new Camera();
@@ -140,7 +140,7 @@ void Application::render(void)
 
 	if (!temp)
 		renderer->renderShadowmap();
-	temp = true;
+	//temp = true;
 
 	//fbo->bind();
 	// Clear the color and the depth buffer
@@ -313,6 +313,7 @@ void Application::renderDebugGUI(void)
 
 	ImGui::Checkbox("Wireframe", &render_wireframe);
 	ImGui::ColorEdit4("BG color", bg_color.v);
+	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
 
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {
@@ -329,7 +330,7 @@ void Application::renderDebugGUI(void)
 
 		ImGui::DragFloat3("Ambient", &(Scene::scene->ambient.x), 0.05f, 0.0f, 1.0f);
 		ImGui::Checkbox("reload", &temp);
-		ImGui::Checkbox("pbr", &(Scene::scene->pbr));
+		//ImGui::Checkbox("pbr", &(Scene::scene->pbr));
 
 
 		if (ImGui::TreeNode(directional, "Directional Light")) {

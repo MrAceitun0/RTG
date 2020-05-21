@@ -254,12 +254,12 @@ void main()
 	vec4 color = u_color;
 	color *= texture( u_texture, uv );
 
-	if(	color.a < 0.9 && floor(mod(gl_FragCoord.x,2.0)) !=floor(mod(gl_FragCoord.y,2.0)) )
+	if(color.a < 0.9 && floor(mod(gl_FragCoord.x,2.0)) !=floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
 
 	vec3 N = normalize(v_normal);
 
-	//color.xyz = gamma(color.xyz);
+	color.xyz = gamma(color.xyz);
 	if(u_hasmetal)
 	{
 		FragColor = vec4(color.rgb, texture(u_metal_roughness, uv).b * u_metalness);
@@ -312,6 +312,11 @@ layout(location = 0) out vec4 FragColor;
 vec3 degamma(vec3 c)
 {
 	return pow(c,vec3(2.2));
+}
+
+vec3 gamma(vec3 c)
+{
+	return pow(c,vec3(1.0/2.2));
 }
 
 //*******************PHONG***************************//
@@ -451,9 +456,11 @@ vec3 specularBRDF( float roughness, vec3 f0, float NoH, float NoV, float NoL, fl
 	return spec;
 }
 
-vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,vec3 baseColor )
+vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,vec4 baseColor )
 {
-	vec3 light;
+	vec3 light = vec3(0.0);//here we can store the total amount of light
+	light += u_ambient_light;//lets add the ambient light first
+
 	vec3 L;
 	float spotfactor=0.0;
 	float light_distance;
@@ -504,8 +511,7 @@ vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,ve
 	
 	//shadow factor
 	float shadow_factor=getShadow(worldpos);
-	
-	//compute how much light received the pixel
+
 	vec3 lightParams = u_light_color * u_light_intensity * att *shadow_factor;
 	
 	if(u_light_type==1){ //spotlight
@@ -531,7 +537,7 @@ vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,ve
 void main()
 {
 	vec2 uv = gl_FragCoord.xy * u_iRes.xy; //extract uvs from pixel screenpos
-	vec3 color = texture( u_color_texture, uv ).xyz;
+	vec4 color = texture( u_color_texture, uv );
 	float metalness = texture( u_normal_texture, uv ).a;
 	float roughness = texture( u_color_texture, uv ).a;
 
@@ -550,13 +556,19 @@ void main()
 	//now do your illumination using worldpos and the normal...
 	vec3 direct = difspec(metalness, roughness, N, uv, worldpos,color);
 	vec3 phong =PhongFunc(N,worldpos);
-	if(u_pbr)
+
+	color.xyz *= direct;
+
+	/*if(u_pbr)
+	{
 		color.xyz *= direct;
+	}
 	else
-		color.xyz *= phong;
-		
-	//color.xyz = degamma(color.xyz);
-	FragColor = vec4(color,1.0);
+		color.xyz *= phong * u_light_intensity * getShadow(worldpos);*/
+
+	color.xyz = degamma(color.xyz);
+
+	FragColor = vec4(color.xyz,1.0);
 }
 
 

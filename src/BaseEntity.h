@@ -45,7 +45,7 @@ class Light :public BaseEntity {
 		light_type l_type;
 		float spotCutOff;
 		float maxDist = 150;
-		FBO *shadow_fbo;
+		FBO *shadow_fbo = NULL;
 		float shadow_bias = 0.1;
 		Camera *light_camera = new Camera();
 		bool has_shadow = false;

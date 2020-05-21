@@ -30,7 +30,7 @@ void Renderer::renderDeferred(Camera* camera)
 		gbuffers_fbo->create(w, h,
 			3, 			//three textures
 			GL_RGBA, 		//four channels
-			GL_UNSIGNED_BYTE, //1 byte
+			GL_HALF_FLOAT, //1 byte
 			true);		//add depth_texture
 	}
 
@@ -69,25 +69,6 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
-
-	/*glViewport(0, 0, w*0.5, h*0.5);
-	gbuffers_fbo->color_textures[0]->toViewport();
-
-	glViewport(w*0.5, 0, w*0.5, h*0.5);
-	gbuffers_fbo->color_textures[1]->toViewport();
-
-	renderShadowmap();
-	glViewport(0, h*0.5, w*0.5, h*0.5);
-	gbuffers_fbo->color_textures[2]->toViewport();
-
-	Shader* shader_depth = Shader::Get("depth");
-	shader_depth->enable();
-	shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
-	
-	glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
-	gbuffers_fbo->depth_texture->toViewport(shader_depth);
-
-	glViewport(0, 0, w, h);*/
 
 	if (!illumination_fbo)
 	{
@@ -138,11 +119,7 @@ void Renderer::renderDeferred(Camera* camera)
 		
 
 		//pass all the information about the light and ambient…
-		if (firstLight)
-		{
-			firstLight = false;
-			sh->setUniform("u_ambient", Scene::scene->ambient);
-		}
+		sh->setUniform("u_ambient_light", Scene::scene->ambient);
 
 		light_vector[i]->setUniforms(sh);
 		if (light_vector[i]->has_shadow) {
@@ -176,7 +153,32 @@ void Renderer::renderDeferred(Camera* camera)
 	//disable depth test and blend!!
 	glDisable(GL_BLEND);
 	//and render the texture into the screen
-	illumination_fbo->color_textures[0]->toViewport();
+
+	if (Scene::scene->gBuffers)
+	{
+		glViewport(0, 0, w*0.5, h*0.5);
+		gbuffers_fbo->color_textures[0]->toViewport();
+
+		glViewport(w*0.5, 0, w*0.5, h*0.5);
+		gbuffers_fbo->color_textures[1]->toViewport();
+
+		renderShadowmap();
+		glViewport(0, h*0.5, w*0.5, h*0.5);
+		gbuffers_fbo->color_textures[2]->toViewport();
+
+		Shader* shader_depth = Shader::Get("depth");
+		shader_depth->enable();
+		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
+
+		glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
+		gbuffers_fbo->depth_texture->toViewport(shader_depth);
+
+		glViewport(0, 0, w, h);
+	}
+	else
+	{
+		illumination_fbo->color_textures[0]->toViewport();
+	}
 }
 
 void GTR::Renderer::renderScene(Camera * camera)
@@ -426,8 +428,11 @@ void GTR::Renderer::renderShadowmap()
 			light_vector[i]->light_camera = cam;
 
 
-			light_vector[i]->shadow_fbo = new FBO();
-			light_vector[i]->shadow_fbo->create(1024, 1024);
+			if (!light_vector[i]->shadow_fbo)
+			{
+				light_vector[i]->shadow_fbo = new FBO();
+				light_vector[i]->shadow_fbo->create(1024, 1024);
+			}
 
 
 			//enable it to render inside the texture

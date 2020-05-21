@@ -13,7 +13,8 @@ public:
 	std::vector<BaseEntity*> entities;
 	Vector3 ambient=Vector3(.1,.1,.1);
 	bool pbr = false;
-	
+	bool gBuffers = false;
+
 	Scene() { scene = this; };
 
 	std::vector<PrefabEntity*> getPrefabs();
