@@ -477,7 +477,7 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 
 
 	texture = material->color_texture;
-	texture_met_rough = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
+	texture_met_rough = material->metallic_roughness_texture;
 	//texture = material->emissive_texture;
 	//texture = material->metallic_roughness_texture;
 	//texture = material->normal_texture;
@@ -530,8 +530,14 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		if (texture)
 			shader->setUniform("u_texture", texture, 0);
 
+		if (texture_met_rough)
+		{
+			shader->setUniform("u_metal_roughness", texture_met_rough, 1);
+			shader->setUniform("u_hasmetal", true);
+		}
+		else
+			shader->setUniform("u_hasmetal", false);
 		
-		shader->setUniform("u_metal_roughness", texture_met_rough, 1);
 		shader->setUniform("u_metalness", 0.5f);
 		shader->setUniform("u_roughness", 0.5f);
 

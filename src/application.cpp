@@ -70,6 +70,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	lamp = new PrefabEntity(prefab_lamp, true);
 	//Lets load some object to render
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
+	//car->prefab->root.material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
 	//car->model.translate(0, 0, -150);
 	//car->model.rotate(45 * DEG2RAD, Vector3(0, 1, 0));
 	car2->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
