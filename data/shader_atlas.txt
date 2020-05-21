@@ -237,10 +237,16 @@ uniform float u_alpha_cutoff;
 uniform sampler2D u_metal_roughness;
 uniform float u_metalness;
 uniform float u_roughness;
+uniform bool u_hasmetal;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 NormalColor;
 layout(location = 2) out vec4 ExtraColor;
+
+vec3 gamma(vec3 c)
+{
+	return pow(c,vec3(1.0/2.2));
+}
 
 void main()
 {
@@ -253,9 +259,17 @@ void main()
 
 	vec3 N = normalize(v_normal);
 
-	FragColor = vec4(color.rgb, texture(u_metal_roughness, uv).b * u_metalness);
-	NormalColor = vec4(N*0.5 + vec3(0.5), texture(u_metal_roughness, uv).g * u_roughness);
-	
+	//color.xyz = gamma(color.xyz);
+	if(u_hasmetal)
+	{
+		FragColor = vec4(color.rgb, texture(u_metal_roughness, uv).b * u_metalness);
+		NormalColor = vec4(N*0.5 + vec3(0.5), texture(u_metal_roughness, uv).g * u_roughness);
+	}
+	else
+	{
+		FragColor = vec4(color.rgb, u_metalness);
+		NormalColor = vec4(N*0.5 + vec3(0.5), u_roughness);
+	}
 }
 
 \deferred.fs
@@ -293,6 +307,11 @@ uniform float u_shadow_bias;
 
 layout(location = 0) out vec4 FragColor;
 
+vec3 degamma(vec3 c)
+{
+	return pow(c,vec3(2.2));
+}
+
 //*******************PHONG***************************//
 vec3 PhongFunc(vec3 N, vec3 worldpos){
 
@@ -325,7 +344,6 @@ vec3 PhongFunc(vec3 N, vec3 worldpos){
 	NdotL = clamp( NdotL, 0.0, 1.0 );//light cannot be negative (but the dot product can)
 	
 	light += ( NdotL * u_light_color) * att_factor;//store the amount of diffuse light
-	//light += ( NdotL * u_light_color);//store the amount of diffuse light
 	
 	if(u_light_type==1){ //spotlight
 		
@@ -431,9 +449,29 @@ vec3 specularBRDF( float roughness, vec3 f0, float NoH, float NoV, float NoL, fl
 	return spec;
 }
 
-vec3 difspec(float metalness, float roughness, vec3 N,vec2 uv, vec3 worldpos)
+vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos)
 {
-	vec3 light;
+	float light_distance;
+	float spotfactor=0.0;
+
+	//depending on the light type...
+	vec3 L;
+	if( u_light_type == 0 ) //directional  light
+	{
+		L = u_light_vector;
+	}
+	else //point and spot light
+	{
+		L = u_light_position - worldpos;//vector from the point to the light
+		light_distance = length(L);
+		L = normalize(L);//we ignore the light distance for now
+	}
+
+	
+	float att_factor = u_light_maxdist - light_distance;//compute a linear attenuation factor
+	att_factor /= u_light_maxdist;//normalize factor
+	att_factor = max( att_factor, 0.0 );//ignore negative values
+
 	//we compute the reflection in base to the color and the metalness
 	vec3 f0 = texture( u_color_texture, uv ).xyz * metalness + (vec3(0.5) * (1.0-metalness));
 
@@ -441,7 +479,6 @@ vec3 difspec(float metalness, float roughness, vec3 N,vec2 uv, vec3 worldpos)
 	vec3 diffuseColor = (1.0 - metalness) * texture( u_color_texture, uv ).xyz;
 
 	//compute the specular
-	vec3 L = normalize(u_light_vector);
 	vec3 V = normalize(worldpos - u_camera_position);
 	vec3 R = reflect(V, N);//reflected vector
     vec3 H = normalize(L + V);
@@ -456,23 +493,32 @@ vec3 difspec(float metalness, float roughness, vec3 N,vec2 uv, vec3 worldpos)
 
 	//add diffuse and specular reflection
 	vec3 direct = Fr_d + Fd_d;
-	
-	float light_distance = length(L);
-	float att_factor = u_light_maxdist - light_distance;//compute a linear attenuation factor
-	att_factor /= u_light_maxdist;//normalize factor
-	att_factor = max( att_factor, 0.0 );//ignore negative values
 
-	//modulate direct light by light received
-	light += direct * att_factor;
-	return light;
+	if(u_light_type==1){ //spotlight
+		
+		vec3 D = normalize(u_light_vector);
+		float spotCosine = dot(D,-L);
+		spotCosine=clamp(spotCosine,0.0,1.0);
+		
+		if (spotCosine >= u_spotCutOff ) { 
+			spotfactor=pow(spotCosine,u_exponent);
+		}else{
+			spotfactor=0.1;
+		}
+	}
+
+	vec3 lightParams = u_light_color * att_factor;
+	vec3 light = direct * lightParams * spotfactor;
+
+	return direct;
 }
 
 void main()
 {
 	vec2 uv = gl_FragCoord.xy * u_iRes.xy; //extract uvs from pixel screenpos
 	vec3 color = texture( u_color_texture, uv ).xyz;
-	float metalness = texture( u_color_texture, uv ).a;
-	float roughness = texture( u_normal_texture, uv ).a;
+	float metalness = texture( u_normal_texture, uv ).a;
+	float roughness = texture( u_color_texture, uv ).a;
 
 	//normals must be converted from 0..1 to -1..+1
 	
@@ -486,18 +532,20 @@ void main()
 	vec4 proj_worldpos = u_inverse_viewprojection * screen_pos;
 	vec3 worldpos = proj_worldpos.xyz / proj_worldpos.w;
 	
-	//now do your illumination using worldpos and the normal...
-	//vec3 phong=PhongFunc(N,worldpos);
-	vec3 difspec = difspec(metalness, roughness, N, uv,worldpos);
-	float shadow= getShadow(worldpos);
-	//phong*=shadow;
-	difspec *= shadow;
-	
-	//color.xyz *= phong * u_light_intensity; 
-	color.xyz *= difspec * u_light_intensity;
+	vec3 light = vec3(0);
 
-	FragColor= vec4(color,1.0);
-	
+	//now do your illumination using worldpos and the normal...
+	vec3 direct = difspec(metalness, roughness, N, uv, worldpos);
+	float shadow= getShadow(worldpos);
+	vec3 phong = PhongFunc(N, worldpos);
+
+	phong *= shadow;
+	//light = difspec(metalness, roughness, N, uv, worldpos) * shadow * u_light_intensity;
+
+	color.xyz *= phong * u_light_intensity;
+
+	color.xyz = degamma(color.xyz);
+	FragColor = vec4(color,1.0);
 }
 
 
