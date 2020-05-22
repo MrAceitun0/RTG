@@ -14,6 +14,8 @@ public:
 	Vector3 ambient=Vector3(.1,.1,.1);
 	bool pbr = false;
 	bool gBuffers = false;
+	bool has_gamma = true;
+
 
 	Scene() { scene = this; };
 

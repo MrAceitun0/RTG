@@ -237,6 +237,7 @@ uniform sampler2D u_metal_roughness;
 uniform float u_metalness;
 uniform float u_roughness;
 uniform bool u_hasmetal;
+uniform bool u_hasgamma;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 NormalColor;
@@ -257,8 +258,10 @@ void main()
 		discard;
 
 	vec3 N = normalize(v_normal);
-
-	color.xyz = gamma(color.xyz);
+	
+	if(u_hasgamma)
+		color.xyz = gamma(color.xyz);
+		
 	if(u_hasmetal)
 	{
 		FragColor = vec4(color.rgb, texture(u_metal_roughness, uv).b * u_metalness);
@@ -287,6 +290,7 @@ uniform sampler2D u_depth_texture;
 uniform mat4 u_inverse_viewprojection;
 uniform vec2 u_iRes;
 uniform bool u_pbr;
+uniform bool u_hasgamma;
 
 //pass here all the uniforms required for illumination...
 
@@ -570,7 +574,8 @@ void main()
 	else
 		color.xyz *= phong * u_light_intensity * getShadow(worldpos);*/
 
-	color.xyz = degamma(color.xyz);
+	if(u_hasgamma)
+		color.xyz = degamma(color.xyz);
 
 	FragColor = vec4(color.xyz,1.0);
 }

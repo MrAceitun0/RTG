@@ -31,7 +31,7 @@ FBO* fbo;
 float cam_speed = 10;
 
 Scene* Scene::scene = nullptr;
-PrefabEntity* car,*car2,*plane,*house,*lamp;
+PrefabEntity* car,*plane,*house;
 
 Light *directional; //{DIRECTIONAL, SPOT, POINT} 0,1,2
 Light *spot, *spot2, *spot3, *spot4, *spot5, *spot6;
@@ -66,12 +66,17 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	fbo->create(window_width, window_height);
 
 	car = new PrefabEntity(prefab_car, true);
+	//house = new PrefabEntity(prefab_house, true);
 	//Lets load some object to render
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
+	//house->prefab = GTR::Prefab::Get("data/prefabs/house/scene.gltf");
 	//GTR::Material* carMaterial = new GTR::Material();
 	//car->prefab->root.children[0]->children[0]->material = carMaterial;
 	car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.2f;
 	car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.5f;
+
+	//house->prefab->root.material->roughness_factor = 0.2f;
+	//house->prefab->root.material->metallic_factor = 0.5f;
 
 	point = new Light(Vector3(1, 0, 0), light_type::POINT_L, true, 0, Vector3(50, 100, 400), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point->intensity = 2;
@@ -134,6 +139,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//add entities
 	Scene::scene->entities.push_back(plane);
 	Scene::scene->entities.push_back(car);
+	//Scene::scene->entities.push_back(house);
 	Scene::scene->entities.push_back(spot);
 	Scene::scene->entities.push_back(spot2);
 	Scene::scene->entities.push_back(spot3);
@@ -352,7 +358,7 @@ void Application::renderDebugGUI(void)
 	ImGui::Checkbox("Wireframe", &render_wireframe);
 	ImGui::ColorEdit4("BG color", bg_color.v);
 	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
-
+	ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {
 		camera->renderInMenu();

@@ -110,6 +110,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
 			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
 			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+			sh->setUniform("u_hasgamma", Scene::scene->has_gamma);
 
 			//pass the inverse projection of the camera to reconstruct world pos.
 			Matrix44 inv_vp = camera->viewprojection_matrix;
@@ -164,6 +165,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
 			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
 			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+			sh->setUniform("u_hasgamma", Scene::scene->has_gamma);
 
 			//pass the inverse projection of the camera to reconstruct world pos.
 			Matrix44 inv_vp = camera->viewprojection_matrix;
@@ -591,6 +593,7 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		shader->setUniform("u_camera_position", camera->eye);
 		shader->setUniform("u_model", model);
 		shader->setUniform("u_camera_near_far", Vector2(camera->near_plane, camera->far_plane));
+		shader->setUniform("u_hasgamma", Scene::scene->has_gamma);
 
 		shader->setUniform("u_color", material->color);
 		if (texture)
