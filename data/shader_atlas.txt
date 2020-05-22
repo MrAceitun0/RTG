@@ -302,6 +302,7 @@ uniform vec3 u_light_position;
 uniform vec3 u_ambient_light;
 uniform vec3 u_light_color;//diffuse
 
+uniform bool u_shadows;
 uniform sampler2D shadowmap;
 uniform mat4 u_shadow_viewproj;
 uniform float u_shadow_bias;
@@ -512,7 +513,11 @@ vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,ve
 	//shadow factor
 	float shadow_factor=getShadow(worldpos);
 
-	vec3 lightParams = u_light_color * u_light_intensity * att *shadow_factor;
+	vec3 lightParams;
+	if(u_shadows)
+		lightParams = u_light_color * u_light_intensity * att *shadow_factor;
+	else
+		lightParams = u_light_color * u_light_intensity * att;
 	
 	if(u_light_type==1){ //spotlight
 		
@@ -555,7 +560,7 @@ void main()
 
 	//now do your illumination using worldpos and the normal...
 	vec3 direct = difspec(metalness, roughness, N, uv, worldpos,color);
-	vec3 phong =PhongFunc(N,worldpos);
+	//vec3 phong =PhongFunc(N,worldpos);
 
 	color.xyz *= direct;
 

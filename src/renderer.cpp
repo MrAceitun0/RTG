@@ -110,7 +110,7 @@ void Renderer::renderDeferred(Camera* camera)
 	sh->setUniform("u_inverse_viewprojection", inv_vp);
 	//pass the inverse window resolution, this may be useful
 	sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
-	sh->setUniform("u_pbr", Scene::scene->pbr);
+	//sh->setUniform("u_pbr", Scene::scene->pbr);
 	std::vector<Light*> light_vector = Scene::scene->getVisibleLights();
 	for (int i = 0; i < light_vector.size(); i++)
 	{
@@ -139,6 +139,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
 
 		}
+
 		glDisable(GL_DEPTH_TEST);
 
 		//render a fullscreen quad
@@ -374,7 +375,9 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 			else {
 				glEnable(GL_BLEND);
 			}
-			if (light_vector[i]->has_shadow) {
+			if (light_vector[i]->has_shadow) 
+			{
+				
 				//get the depth texture from the FBO
 				Texture* shadowmap = light_vector[i]->shadow_fbo->depth_texture;
 
@@ -389,7 +392,6 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 
 				//we will also need the shadow bias
 				shader->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
-				
 			}
 
 			//pass the light data to the shader
@@ -543,8 +545,8 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		else
 			shader->setUniform("u_hasmetal", false);
 		
-		shader->setUniform("u_metalness", 0.2f);
-		shader->setUniform("u_roughness", 0.5f);
+		shader->setUniform("u_metalness", material->metallic_factor);
+		shader->setUniform("u_roughness", material->roughness_factor);
 
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);

@@ -49,4 +49,5 @@ void Light::setUniforms(Shader * shader)
 	shader->setUniform("u_exponent", this->exponent_factor);
 	shader->setUniform("u_light_maxdist", this->maxDist);
 	shader->setUniform("u_light_intensity", this->intensity);
+	shader->setUniform("u_shadows", this->has_shadow);
 }

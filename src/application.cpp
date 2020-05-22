@@ -33,8 +33,9 @@ float cam_speed = 10;
 Scene* Scene::scene = nullptr;
 PrefabEntity* car,*car2,*plane,*house,*lamp;
 
-Light* point,*point2, *spot,* directional; //{DIRECTIONAL, SPOT, POINT} 0,1,2
-
+Light *directional; //{DIRECTIONAL, SPOT, POINT} 0,1,2
+Light *spot, *spot2, *spot3, *spot4, *spot5, *spot6;
+Light *point, *point2, *point3, *point4, *point5, *point6, *point7, *point8, *point9, *point10, *point11, *point12, *point13;
 bool temp = false;
 
 Application::Application(int window_width, int window_height, SDL_Window* window)
@@ -65,32 +66,55 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	fbo->create(window_width, window_height);
 
 	car = new PrefabEntity(prefab_car, true);
-	car2 = new PrefabEntity(prefab_car, true);
-	house = new PrefabEntity(prefab_house, true);
-	lamp = new PrefabEntity(prefab_lamp, true);
 	//Lets load some object to render
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	//car->prefab->root.material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
-	//car->model.translate(0, 0, -150);
-	//car->model.rotate(45 * DEG2RAD, Vector3(0, 1, 0));
-	car2->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	car2->model.translate(100, 0, -50);
-	house->prefab = GTR::Prefab::Get("data/prefabs/house/scene.gltf");
-	house->model.scale(0.5, 0.5, 0.5);
-	house->model.translate(0.0, 0, 600.0);
-	lamp->prefab = GTR::Prefab::Get("data/prefabs/lamp/scene.gltf");
-	lamp->model.scale(10.0, 10.0, 10.0);
+	//GTR::Material* carMaterial = new GTR::Material();
+	//car->prefab->root.children[0]->children[0]->material = carMaterial;
+	car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.2f;
+	car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.5f;
 
-	point = new Light(Vector3(1, 0, 1), light_type::POINT_L, true, 0, Vector3(0, 250, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point = new Light(Vector3(1, 0, 0), light_type::POINT_L, true, 0, Vector3(50, 100, 400), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point->intensity = 2;
-	point2 = new Light(Vector3(0, 1, 0), light_type::POINT_L, true, 0, Vector3(0, 350, 300), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point2 = new Light(Vector3(0, 1, 0), light_type::POINT_L, true, 0, Vector3(0, 100, 350), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point2->intensity = 2;
+	point3 = new Light(Vector3(0, 0, 1), light_type::POINT_L, true, 0, Vector3(50, 100, 450), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point3->intensity = 2;
+	point4 = new Light(Vector3(1, 1, 1), light_type::POINT_L, true, 0, Vector3(-400, 100, -500), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point4->intensity = 5;
+	point5 = new Light(Vector3(1, 1, 1), light_type::POINT_L, true, 0, Vector3(0, 100, -500), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point5->intensity = 2.5;
+	point6 = new Light(Vector3(1, 1, 1), light_type::POINT_L, true, 0, Vector3(400, 100, -500), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point6->intensity = 1;
+	point7 = new Light(Vector3(0.58, 0, 0.83), light_type::POINT_L, true, 0, Vector3(-600, 50, 500), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point7->intensity = 2;
+	point8 = new Light(Vector3(0.29, 0, 0.51), light_type::POINT_L, true, 0, Vector3(-600, 50, 400), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point8->intensity = 3;
+	point9 = new Light(Vector3(0, 0, 1), light_type::POINT_L, true, 0, Vector3(-600, 50, 300), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point9->intensity = 2;
+	point10 = new Light(Vector3(0, 1, 0), light_type::POINT_L, true, 0, Vector3(-600, 50, 200), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point10->intensity = 2;
+	point11 = new Light(Vector3(1, 1, 0), light_type::POINT_L, true, 0, Vector3(-600, 50, 100), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point11->intensity = 2;
+	point12 = new Light(Vector3(1, 0.5, 0), light_type::POINT_L, true, 0, Vector3(-600, 50, 0), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point12->intensity = 2;
+	point13 = new Light(Vector3(1, 0, 0), light_type::POINT_L, true, 0, Vector3(-600, 50, -100), 200); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	point13->intensity = 2;
 
 	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(300, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
-	spot->has_shadow = false;
 	spot->intensity = 3;
+	spot2 = new Light(Vector3(1, 1, 1), light_type::SPOT, true, 150 * DEG2RAD, Vector3(-40, 50, 80), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	spot2->intensity = 3;
+	spot3 = new Light(Vector3(1, 1, 1), light_type::SPOT, true, 150 * DEG2RAD, Vector3(40, 50, 80), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	spot3->intensity = 3;
+	spot4 = new Light(Vector3(1, 0, 0), light_type::SPOT, true, 30 * DEG2RAD, Vector3(-40, 50, -80), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	spot4->intensity = 3;
+	spot5 = new Light(Vector3(1, 0, 0), light_type::SPOT, true, 30 * DEG2RAD, Vector3(40, 50, -80), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	spot5->intensity = 3;
+	spot6 = new Light(Vector3(0, 0, 1), light_type::SPOT, true, 45 * DEG2RAD, Vector3(-300, 100, 0), 1000); //{DIRECTIONAL, SPOT, POINT} 0,1,2
+	spot6->intensity = 3;
+
 	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), 9999999); //{DIRECTIONAL, SPOT, POINT} 0,1,2
-	directional->has_shadow = true;
+	directional->has_shadow = false;
 	directional->model.rotate(-90 * DEG2RAD, Vector3(1, 0, 0));
 	directional->model.rotate(-45 * DEG2RAD, Vector3(0, 1, 0));
 	directional->shadow_bias = 0.001;
@@ -109,13 +133,26 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//add entities
 	Scene::scene->entities.push_back(plane);
 	Scene::scene->entities.push_back(car);
-	//Scene::scene->entities.push_back(car2);
-	//Scene::scene->entities.push_back(house);
-	//Scene::scene->entities.push_back(lamp);
 	Scene::scene->entities.push_back(spot);
+	Scene::scene->entities.push_back(spot2);
+	Scene::scene->entities.push_back(spot3);
+	Scene::scene->entities.push_back(spot4);
+	Scene::scene->entities.push_back(spot5);
+	Scene::scene->entities.push_back(spot6);
 	Scene::scene->entities.push_back(directional);
 	Scene::scene->entities.push_back(point);
 	Scene::scene->entities.push_back(point2);
+	Scene::scene->entities.push_back(point3);
+	Scene::scene->entities.push_back(point4);
+	Scene::scene->entities.push_back(point5);
+	Scene::scene->entities.push_back(point6);
+	Scene::scene->entities.push_back(point7);
+	Scene::scene->entities.push_back(point8);
+	Scene::scene->entities.push_back(point9);
+	Scene::scene->entities.push_back(point10);
+	Scene::scene->entities.push_back(point11);
+	Scene::scene->entities.push_back(point12);
+	Scene::scene->entities.push_back(point13);
 
 	// Create camera
 	camera = new Camera();
@@ -322,17 +359,21 @@ void Application::renderDebugGUI(void)
 	}
 
 	//example to show prefab info: first param must be unique!
-	if (car->prefab && ImGui::TreeNode(car->prefab, "Prefab")) {
+	if (car->prefab && ImGui::TreeNode(car->prefab, "Car")) {
 		car->prefab->root.renderInMenu();
 		ImGui::TreePop();
 	}
+
+	if (plane->prefab && ImGui::TreeNode(plane->prefab, "Floor")) {
+		plane->prefab->root.renderInMenu();
+		ImGui::TreePop();
+	}
+
 	if (ImGui::TreeNode(directional, "Lights")) {
 
 		ImGui::DragFloat3("Ambient", &(Scene::scene->ambient.x), 0.05f, 0.0f, 1.0f);
-		ImGui::Checkbox("reload", &temp);
-		//ImGui::Checkbox("pbr", &(Scene::scene->pbr));
 
-
+		
 		if (ImGui::TreeNode(directional, "Directional Light")) {
 
 			float matrixTranslation[3], matrixRotation[3], matrixScale[3];
@@ -343,6 +384,7 @@ void Application::renderDebugGUI(void)
 			ImGui::SliderFloat("Bias", &(directional->shadow_bias), 0.0f, 1.f);
 			ImGui::SliderFloat("Intensity", &(directional->intensity), 0.0f, 10.f);
 			ImGui::Checkbox("visible", &(directional->visible));
+			ImGui::Checkbox("Shadows", &(directional->has_shadow));
 
 		}
 		if (ImGui::TreeNode(point, "Point Light Purple")) {
@@ -362,7 +404,7 @@ void Application::renderDebugGUI(void)
 			ImGui::SliderFloat("Intensity", &(point2->intensity), 0.0f, 10.f);
 			ImGui::Checkbox("visible", &(point2->visible));
 		}
-		if (ImGui::TreeNode(spot, "Spot Light")) {
+		if (ImGui::TreeNode(spot, "Yellow Spot Light")) {
 
 			float matrixTranslation[3], matrixRotation[3], matrixScale[3];
 			ImGuizmo::DecomposeMatrixToComponents(spot->model.m, matrixTranslation, matrixRotation, matrixScale);
@@ -376,6 +418,7 @@ void Application::renderDebugGUI(void)
 			ImGui::SliderFloat("Bias", &(spot->shadow_bias), 0.0f, 1.f);
 			ImGui::SliderFloat("Intensity", &(spot->intensity), 0.0f, 10.f);
 			ImGui::Checkbox("visible", &(spot->visible));
+			ImGui::Checkbox("Shadows", &(spot->has_shadow));
 		}
 
 	}

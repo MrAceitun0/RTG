@@ -33,8 +33,8 @@ namespace GTR {
 
 								//material properties
 		Vector4 color;			//color and opacity
-		float roughness_factor;	//how smooth or rough is the surface
-		float metallic_factor;	//how metallic is the surface
+		float roughness_factor = 0.2;	//how smooth or rough is the surface
+		float metallic_factor = 0.5;	//how metallic is the surface
 		Vector3 emissive_factor;//does this object emit light?
 
 								//textures
@@ -46,10 +46,12 @@ namespace GTR {
 		Texture* normal_texture;//normalmap
 
 								//ctors
-		Material() : alpha_mode(NO_ALPHA), alpha_cutoff(0.5), color(1, 1, 1, 1), two_sided(false), roughness_factor(1), metallic_factor(0) {
+		Material() : alpha_mode(NO_ALPHA), alpha_cutoff(0.5), color(1, 1, 1, 1), two_sided(false), roughness_factor(0.2f), metallic_factor(0.5f) {
 			color_texture = emissive_texture = metallic_roughness_texture = occlusion_texture = normal_texture = NULL;
 		}
-		Material(Texture* texture) : Material() { color_texture = texture; }
+		Material(Texture* texture) : Material() {
+			color_texture = texture; roughness_factor = 0.2f; metallic_factor = 0.5f;
+		}
 		virtual ~Material();
 
 		//render gui info inside the panel
