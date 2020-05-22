@@ -5,8 +5,7 @@ texture basic.vs texture.fs
 depth quad.vs depth.fs
 multi basic.vs multi.fs
 deferred quad.vs deferred.fs
-
-
+deferred_ws basic.vs deferred.fs
 
 \basic.vs
 

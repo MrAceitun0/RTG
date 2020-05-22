@@ -114,10 +114,11 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	spot6->intensity = 3;
 
 	directional = new Light(Vector3(0.2, 0.2, 0.2), light_type::DIRECTIONAL, true, 0*DEG2RAD, Vector3(0, 0, 0), 9999999); //{DIRECTIONAL, SPOT, POINT} 0,1,2
-	directional->has_shadow = false;
+	directional->has_shadow = true;
 	directional->model.rotate(-90 * DEG2RAD, Vector3(1, 0, 0));
 	directional->model.rotate(-45 * DEG2RAD, Vector3(0, 1, 0));
 	directional->shadow_bias = 0.001;
+	directional->intensity = 3;
 	
 	prefab_plane = new GTR::Prefab();
 	Mesh *p = new Mesh();
@@ -387,7 +388,7 @@ void Application::renderDebugGUI(void)
 			ImGui::Checkbox("Shadows", &(directional->has_shadow));
 
 		}
-		if (ImGui::TreeNode(point, "Point Light Purple")) {
+		if (ImGui::TreeNode(point, "Point Light 1")) {
 
 			ImGui::DragFloat3("Position", &(point->position.x), 0.1f);
 			ImGui::DragFloat3("Color", &(point->color.x), 0.1f, 0.0f, 1.0f);
@@ -395,7 +396,7 @@ void Application::renderDebugGUI(void)
 			ImGui::SliderFloat("Intensity", &(point->intensity), 0.0f, 10.f);
 			ImGui::Checkbox("visible", &(point->visible));
 		}
-		if (ImGui::TreeNode(point2, "Point Light Green")) {
+		if (ImGui::TreeNode(point2, "Point Light 2")) {
 
 
 			ImGui::DragFloat3("Position", &(point2->position.x), 0.1f);

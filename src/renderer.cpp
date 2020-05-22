@@ -88,62 +88,121 @@ void Renderer::renderDeferred(Camera* camera)
 	glClearColor(0.1, 0.1, 0.1, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	bool firstLight = true;
-	//we need a fullscreen quad
-	Mesh* quad = Mesh::getQuad();
-
-	//we need a shader specially for this task, lets call it "deferred"
-	Shader* sh = Shader::Get("deferred");
-	sh->enable();
-
-	sh->setUniform("u_camera_position", camera->eye);
-
-	//pass the gbuffers to the shader
-	sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
-	sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
-	sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
-	sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
-
-	//pass the inverse projection of the camera to reconstruct world pos.
-	Matrix44 inv_vp = camera->viewprojection_matrix;
-	inv_vp.inverse();
-	sh->setUniform("u_inverse_viewprojection", inv_vp);
-	//pass the inverse window resolution, this may be useful
-	sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
-	//sh->setUniform("u_pbr", Scene::scene->pbr);
 	std::vector<Light*> light_vector = Scene::scene->getVisibleLights();
 	for (int i = 0; i < light_vector.size(); i++)
 	{
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_ONE, GL_ONE);
 		
+		if (light_vector[i]->l_type != light_type::POINT_L)
+		{
+			//we need a fullscreen quad
+			Mesh* quad = Mesh::getQuad();
 
-		//pass all the information about the light and ambient…
-		sh->setUniform("u_ambient_light", Scene::scene->ambient);
+			//we need a shader specially for this task, lets call it "deferred"
+			Shader* sh = Shader::Get("deferred");
+			sh->enable();
 
-		light_vector[i]->setUniforms(sh);
-		if (light_vector[i]->has_shadow) {
-			//get the depth texture from the FBO
-			Texture* shadowmap = light_vector[i]->shadow_fbo->depth_texture;
+			sh->setUniform("u_camera_position", camera->eye);
 
-			//first time we create the FBO
-			sh->setTexture("shadowmap", shadowmap, 8);
+			//pass the gbuffers to the shader
+			sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
+			sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
+			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
+			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
 
-			//also get the viewprojection from the light
-			Matrix44 shadow_proj = light_vector[i]->light_camera->viewprojection_matrix;
+			//pass the inverse projection of the camera to reconstruct world pos.
+			Matrix44 inv_vp = camera->viewprojection_matrix;
+			inv_vp.inverse();
+			sh->setUniform("u_inverse_viewprojection", inv_vp);
+			//pass the inverse window resolution, this may be useful
+			sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
 
-			//pass it to the shader
-			sh->setUniform("u_shadow_viewproj", shadow_proj);
+			//pass all the information about the light and ambient…
+			sh->setUniform("u_ambient_light", Scene::scene->ambient);
 
-			//we will also need the shadow bias
-			sh->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
+			light_vector[i]->setUniforms(sh);
+			if (light_vector[i]->has_shadow) {
+				//get the depth texture from the FBO
+				Texture* shadowmap = light_vector[i]->shadow_fbo->depth_texture;
 
+				//first time we create the FBO
+				sh->setTexture("shadowmap", shadowmap, 8);
+
+				//also get the viewprojection from the light
+				Matrix44 shadow_proj = light_vector[i]->light_camera->viewprojection_matrix;
+
+				//pass it to the shader
+				sh->setUniform("u_shadow_viewproj", shadow_proj);
+
+				//we will also need the shadow bias
+				sh->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
+
+			}
+
+			glDisable(GL_DEPTH_TEST);
+
+			//render a fullscreen quad
+			quad->render(GL_TRIANGLES);
+
+			sh->disable();
 		}
+		else
+		{
+			//we can use a sphere mesh for point lights
+			Mesh* sphere = Mesh::Get("data/meshes/sphere.obj");
+			
+			//this deferred_ws shader uses the basic.vs instead of quad.vs
+			Shader* sh = Shader::Get("deferred_ws");
+			sh->enable();
 
-		glDisable(GL_DEPTH_TEST);
+			//remember to upload all the uniforms for gbuffers, ivp, etc...
+			sh->setUniform("u_camera_position", camera->eye);
 
-		//render a fullscreen quad
-		quad->render(GL_TRIANGLES);
+			//pass the gbuffers to the shader
+			sh->setUniform("u_color_texture", gbuffers_fbo->color_textures[0], 0);
+			sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
+			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
+			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+
+			//pass the inverse projection of the camera to reconstruct world pos.
+			Matrix44 inv_vp = camera->viewprojection_matrix;
+			inv_vp.inverse();
+			sh->setUniform("u_inverse_viewprojection", inv_vp);
+			//pass the inverse window resolution, this may be useful
+			sh->setUniform("u_iRes", Vector2(1.0 / (float)w, 1.0 / (float)h));
+
+			//pass all the information about the light and ambient…
+			sh->setUniform("u_ambient_light", Scene::scene->ambient);
+
+			//basic.vs will need the model and the viewproj of the camera
+			sh->setUniform("u_viewprojection", camera->viewprojection_matrix);
+
+			//we must translate the model to the center of the light
+			Matrix44 m;
+			m.setTranslation(light_vector[i]->position.x, light_vector[i]->position.y, light_vector[i]->position.z);
+			//and scale it according to the max_distance of the light
+			m.scale(light_vector[i]->maxDist, light_vector[i]->maxDist, light_vector[i]->maxDist);
+			//pass the model to the shader to render the sphere
+			sh->setUniform("u_model", m);
+
+			//pass all the info about this light…
+			light_vector[i]->setUniforms(sh);
+
+			//render only the backfacing triangles of the sphere
+			glFrontFace(GL_CW);
+
+			glDisable(GL_DEPTH_TEST);
+
+			glEnable(GL_CULL_FACE);
+			//and render the sphere
+			sphere->render(GL_TRIANGLES);
+			glDisable(GL_CULL_FACE);
+
+			glFrontFace(GL_CCW);
+
+			sh->disable();
+		}
 	}
 
 	//stop rendering to the fbo, render to screen
