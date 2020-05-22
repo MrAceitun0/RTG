@@ -1,17 +1,18 @@
 Laura Beltrán 	NIA:194993 	laura.beltran02@estudiant.upf.edu
-Sergi Olives	NIA:
+Sergi Olives	NIA:193196	sergi.olives01@estudiant.upf.edu
 
 La escena contiene 13 point lights, 6 spot lights y una directional light.
+La directional, 2 point lights y una spotlight se pueden modificar directamente desde el debugger en realtime, el resto son estáticas.
+La luz directional genera sombras en la escena, aunque se puede activar y desactivar en real time, igual que con la spotlight.
 
-DEBUG
-
+DEBUGGER
 1. Checkbox Show gBuffers: si está activo aparecen en pantalla los gbuffers
 de color, normal y depth.
 2. Checkbox Gamma: si está activo se aplica el gamma.
 3. Car: 
 	3.1 Checkbox Visible: para activar y desactivar el coche.
 	3.2 Dentro de los children de car hay el apartado material 
-	donde puedes regular roughness y metalness.
+	donde puedes regular roughness y metalness del PBR.
 4.Floor (lo mismo que en car)
 5.Lights:
 	5.1 Ambient: puedes cambiar el color de la ambient light
@@ -27,4 +28,7 @@ de color, normal y depth.
 	(cutoff) del cono de la luz, ajustar el exponente de la luz,ajustar la
 	distancia máxima, ajustar el bias de la sombra, ajustar la intensidad,
 	activar o desactivar la luz y activar o desactivar la sombra.
-		
+
+Otros:
+*Las Point Lights usan geometría de esferas para calcular la luz
+*Se aplica dithering a los objetos transparentes
