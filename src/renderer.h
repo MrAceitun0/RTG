@@ -18,6 +18,8 @@ namespace GTR {
 
 	public:
 		FBO* gbuffers_fbo;
+		FBO* ssao_fbo;
+		Texture* ssao_blur;
 		FBO* illumination_fbo;
 
 		Renderer();

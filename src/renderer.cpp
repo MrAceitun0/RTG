@@ -16,7 +16,34 @@ bool render_shadowmap = false;
 Renderer::Renderer()
 {
 	gbuffers_fbo = NULL;
+	ssao_fbo = NULL;
+	ssao_blur = NULL;
 	illumination_fbo = NULL;
+}
+
+std::vector<Vector3> generateSpherePoints(int num, float radius, bool hemi)
+{
+	std::vector<Vector3> points;
+	points.resize(num);
+	for (int i = 0; i < num; i += 3)
+	{
+		Vector3& p = points[i];
+		float u = random();
+		float v = random();
+		float theta = u * 2.0 * PI;
+		float phi = acos(2.0 * v - 1.0);
+		float r = cbrt(random() * 0.9 + 0.1) * radius;
+		float sinTheta = sin(theta);
+		float cosTheta = cos(theta);
+		float sinPhi = sin(phi);
+		float cosPhi = cos(phi);
+		p.x = r * sinPhi * cosTheta;
+		p.y = r * sinPhi * sinTheta;
+		p.z = r * cosPhi;
+		if (hemi && p.z < 0)
+			p.z *= -1.0;
+	}
+	return points;
 }
 
 void Renderer::renderDeferred(Camera* camera)
@@ -70,6 +97,51 @@ void Renderer::renderDeferred(Camera* camera)
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
 
+	//SCREEN SPACE AMBIENT OCCLUSION
+	if (!ssao_fbo)
+	{
+		ssao_fbo = new FBO();
+		ssao_fbo->create(w, h);
+	}
+
+	if (!ssao_blur)
+	{
+		ssao_blur = new Texture();
+		ssao_blur->create(w, h);
+	}
+
+	Mesh* ssao_quad = Mesh::getQuad();
+
+	//start rendering inside the ssao texture
+	ssao_fbo->bind();
+
+	//get the shader for SSAO (remember to create it using the atlas)
+	Shader* shader = Shader::Get("ssao");
+	shader->enable();
+
+	//send info to reconstruct the world position
+	Matrix44 inv_vp = camera->viewprojection_matrix;
+	inv_vp.inverse();
+	shader->setUniform("u_inverse_viewprojection", inv_vp);
+	shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 0);
+	//we need the pixel size so we can center the samples 
+	shader->setUniform("u_iRes", Vector2(1.0 / (float)gbuffers_fbo->depth_texture->width, 1.0 / (float)gbuffers_fbo->depth_texture->height));
+	//we will need the viewprojection to obtain the uv in the depthtexture of any random position of our world
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+
+	//send random points so we can fetch around
+	std::vector<Vector3> random_points = generateSpherePoints(64, 5.0f, false);
+	shader->setUniform3Array("u_points", (float*)&random_points[0], random_points.size());
+
+	//render fullscreen quad
+	ssao_quad->render(GL_TRIANGLES);
+
+	//stop rendering to the texture
+	ssao_fbo->unbind();
+
+
+	/***************************/
+	//ILLUMINATION
 	if (!illumination_fbo)
 	{
 		illumination_fbo = new FBO();
@@ -113,7 +185,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_hasgamma", Scene::scene->has_gamma);
 
 			//pass the inverse projection of the camera to reconstruct world pos.
-			Matrix44 inv_vp = camera->viewprojection_matrix;
+			inv_vp = camera->viewprojection_matrix;
 			inv_vp.inverse();
 			sh->setUniform("u_inverse_viewprojection", inv_vp);
 			//pass the inverse window resolution, this may be useful
@@ -224,9 +296,8 @@ void Renderer::renderDeferred(Camera* camera)
 		glViewport(w*0.5, 0, w*0.5, h*0.5);
 		gbuffers_fbo->color_textures[1]->toViewport();
 
-		renderShadowmap();
 		glViewport(0, h*0.5, w*0.5, h*0.5);
-		gbuffers_fbo->color_textures[2]->toViewport();
+		ssao_fbo->color_textures[0]->toViewport();
 
 		Shader* shader_depth = Shader::Get("depth");
 		shader_depth->enable();
@@ -240,6 +311,7 @@ void Renderer::renderDeferred(Camera* camera)
 	else
 	{
 		illumination_fbo->color_textures[0]->toViewport();
+		//ssao_fbo->color_textures[0]->toViewport();
 	}
 }
 
