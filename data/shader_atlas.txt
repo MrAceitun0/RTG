@@ -6,6 +6,8 @@ depth quad.vs depth.fs
 multi basic.vs multi.fs
 deferred quad.vs deferred.fs
 deferred_ws basic.vs deferred.fs
+ssao quad.vs ssao.fs
+blur quad.vs blur.fs
 
 \basic.vs
 
@@ -579,6 +581,99 @@ void main()
 
 	FragColor = vec4(color.xyz,1.0);
 }
+\ssao.fs
+
+#version 330 core
+
+uniform vec2 u_iRes;
+uniform sampler2D u_depth_texture;
+uniform mat4 u_inverse_viewprojection;
+uniform mat4 u_viewprojection;
+uniform vec3 u_points[64];
+
+in vec2 v_uv;
+out vec4 FragColor;
+
+float ComputeAO(vec3 worldpos){
+
+//lets use 64 samples
+const int samples = 64;
+int num = samples; //num samples that passed the are outside
+
+//for every sample around the point
+for( int i = 0; i < samples; ++i )
+{
+	//compute is world position using the random
+	vec3 p = worldpos + u_points[i] * 10.0; //multiplicar el u points per la mat3 en cas de hemisferes
+	//find the uv in the depth buffer of this point
+	vec4 proj = u_viewprojection * vec4(p,1.0);
+	proj.xy /= proj.w; //convert to clipspace from homogeneous
+	//apply a tiny bias to its z before converting to clip-space
+	proj.z = (proj.z - 0.005) / proj.w;
+	proj.xyz = proj.xyz * 0.5 + vec3(0.5); //to [0..1]
+	//read p true depth
+	float pdepth = texture( u_depth_texture, proj.xy ).x;
+	//compare true depth with its depth
+	if( pdepth < proj.z ) //if true depth smaller, is inside
+		num--; //remove this point from the list of visible
+}
+
+//finally, compute the AO factor accordingly
+float ao = float(num) / float(samples);
+return ao;
+
+}
+
+void main(){
+
+//we want to center the sample in the center of the pixel
+vec2 uv = v_uv + u_iRes * 0.5;
+
+//read depth from depth buffer
+float depth = texture( u_depth_texture, uv ).x;
+
+//ignore pixels in the background
+if(depth >= 1.0)
+{
+	FragColor = vec4(1.0);
+	return;
+}
+
+//create screenpos with the right depth
+vec4 screen_position = vec4(uv*2.0 - vec2(1.0), depth*2.0 - 1.0,1.0);
+
+//reproject
+vec4 proj_worldpos = u_inverse_viewprojection * screen_position;
+vec3 worldpos = proj_worldpos.xyz / proj_worldpos.w;
+
+float ao=ComputeAO(worldpos);
+FragColor=vec4(ao);
+
+}
+
+\blur.fs
+
+#version 330 core
+
+uniform vec2 u_offset;
+uniform sampler2D u_texture;
+
+in vec2 v_uv;
+out vec4 FragColor;
+
+void main(){
+
+//we want to center the sample in the center of the pixel
+vec2 uv = v_uv ;
+vec4 color =vec4(0.0);
+for (int i=-2;i<=2;i++)
+for (int j=-2;j<=2;j++)
+	color + = texture2D(u_texture,uv +u_offset+vec2(i,j)+vec2(0.5)*u_offset);
+color/=25.0;
+FragColor=vec4(color);
+
+}
+
 
 
 \depth.fs

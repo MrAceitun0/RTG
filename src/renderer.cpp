@@ -109,7 +109,6 @@ void Renderer::renderDeferred(Camera* camera)
 		ssao_blur = new Texture();
 		ssao_blur->create(w, h);
 	}
-
 	Mesh* ssao_quad = Mesh::getQuad();
 
 	//start rendering inside the ssao texture
@@ -132,13 +131,22 @@ void Renderer::renderDeferred(Camera* camera)
 	//send random points so we can fetch around
 	std::vector<Vector3> random_points = generateSpherePoints(64, 5.0f, false);
 	shader->setUniform3Array("u_points", (float*)&random_points[0], random_points.size());
-
 	//render fullscreen quad
 	ssao_quad->render(GL_TRIANGLES);
-
+	shader->disable();
 	//stop rendering to the texture
 	ssao_fbo->unbind();
 
+	Shader* blur_shader = Shader::Get("blur");
+	shader->enable();
+	blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height));
+	ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
+	shader->enable();
+	blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*2.0);
+	ssao_blur->copyTo(ssao_fbo->color_textures[0], blur_shader);
+	shader->enable();
+	blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*4.0);
+	ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
 
 	/***************************/
 	//ILLUMINATION
@@ -290,6 +298,11 @@ void Renderer::renderDeferred(Camera* camera)
 
 	if (Scene::scene->gBuffers)
 	{
+
+		Shader* shader_depth = Shader::Get("depth");
+		shader_depth->enable();
+		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
+
 		glViewport(0, 0, w*0.5, h*0.5);
 		gbuffers_fbo->color_textures[0]->toViewport();
 
@@ -298,10 +311,9 @@ void Renderer::renderDeferred(Camera* camera)
 
 		glViewport(0, h*0.5, w*0.5, h*0.5);
 		ssao_fbo->color_textures[0]->toViewport();
+		//ssao_fbo->depth_texture->toViewport(shader_depth);
 
-		Shader* shader_depth = Shader::Get("depth");
-		shader_depth->enable();
-		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
+		
 
 		glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
 		gbuffers_fbo->depth_texture->toViewport(shader_depth);
