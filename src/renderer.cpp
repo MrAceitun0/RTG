@@ -21,7 +21,7 @@ Renderer::Renderer()
 	illumination_fbo = NULL;
 }
 
-std::vector<Vector3> generateSpherePoints(int num, float radius, bool hemi)
+std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
 {
 	std::vector<Vector3> points;
 	points.resize(num);
@@ -109,10 +109,11 @@ void Renderer::renderDeferred(Camera* camera)
 		ssao_blur = new Texture();
 		ssao_blur->create(w, h);
 	}
-	Mesh* ssao_quad = Mesh::getQuad();
 
 	//start rendering inside the ssao texture
 	ssao_fbo->bind();
+
+	glDisable(GL_DEPTH_TEST);
 
 	//get the shader for SSAO (remember to create it using the atlas)
 	Shader* shader = Shader::Get("ssao");
@@ -121,33 +122,41 @@ void Renderer::renderDeferred(Camera* camera)
 	//send info to reconstruct the world position
 	Matrix44 inv_vp = camera->viewprojection_matrix;
 	inv_vp.inverse();
+	shader->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 0);
 	shader->setUniform("u_inverse_viewprojection", inv_vp);
-	shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 0);
+	shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 1);
 	//we need the pixel size so we can center the samples 
 	shader->setUniform("u_iRes", Vector2(1.0 / (float)gbuffers_fbo->depth_texture->width, 1.0 / (float)gbuffers_fbo->depth_texture->height));
 	//we will need the viewprojection to obtain the uv in the depthtexture of any random position of our world
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 
 	//send random points so we can fetch around
-	std::vector<Vector3> random_points = generateSpherePoints(64, 5.0f, false);
 	shader->setUniform3Array("u_points", (float*)&random_points[0], random_points.size());
+
 	//render fullscreen quad
+	Mesh* ssao_quad = Mesh::getQuad();
 	ssao_quad->render(GL_TRIANGLES);
+	glDisable(GL_BLEND);
+	glDepthFunc(GL_LESS); //as default;
 	shader->disable();
+
 	//stop rendering to the texture
 	ssao_fbo->unbind();
-
-	Shader* blur_shader = Shader::Get("blur");
-	shader->enable();
-	blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height));
-	ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
-	shader->enable();
-	blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*2.0);
-	ssao_blur->copyTo(ssao_fbo->color_textures[0], blur_shader);
-	shader->enable();
-	blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*4.0);
-	ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
-
+	
+	if (ssao_blurring)
+	{
+		Shader* blur_shader = Shader::Get("blur");
+		blur_shader->enable();
+		blur_shader->setUniform("u_texture", ssao_fbo->color_textures[0]);
+		blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height));
+		ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
+		blur_shader->enable();
+		blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*2.0);
+		ssao_blur->copyTo(ssao_fbo->color_textures[0], blur_shader);
+		blur_shader->enable();
+		blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*4.0);
+		ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
+	}
 	/***************************/
 	//ILLUMINATION
 	if (!illumination_fbo)
@@ -191,6 +200,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
 			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
 			sh->setUniform("u_hasgamma", Scene::scene->has_gamma);
+			sh->setUniform("u_ssao", ssao_fbo->color_textures[0], 4);
 
 			//pass the inverse projection of the camera to reconstruct world pos.
 			inv_vp = camera->viewprojection_matrix;
@@ -246,6 +256,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
 			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
 			sh->setUniform("u_hasgamma", Scene::scene->has_gamma);
+			sh->setUniform("u_ssao", ssao_fbo->color_textures[0], 4);
 
 			//pass the inverse projection of the camera to reconstruct world pos.
 			Matrix44 inv_vp = camera->viewprojection_matrix;
@@ -291,11 +302,9 @@ void Renderer::renderDeferred(Camera* camera)
 	illumination_fbo->unbind();
 
 	//be sure blending is not active
-	//glDisable(GL_BLEND);
-	//disable depth test and blend!!
 	glDisable(GL_BLEND);
-	//and render the texture into the screen
 
+	//and render the texture into the screen
 	if (Scene::scene->gBuffers)
 	{
 
@@ -311,10 +320,7 @@ void Renderer::renderDeferred(Camera* camera)
 
 		glViewport(0, h*0.5, w*0.5, h*0.5);
 		ssao_fbo->color_textures[0]->toViewport();
-		//ssao_fbo->depth_texture->toViewport(shader_depth);
-
 		
-
 		glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
 		gbuffers_fbo->depth_texture->toViewport(shader_depth);
 
@@ -323,7 +329,6 @@ void Renderer::renderDeferred(Camera* camera)
 	else
 	{
 		illumination_fbo->color_textures[0]->toViewport();
-		//ssao_fbo->color_textures[0]->toViewport();
 	}
 }
 

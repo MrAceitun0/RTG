@@ -72,8 +72,8 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//house->prefab = GTR::Prefab::Get("data/prefabs/house/scene.gltf");
 	//GTR::Material* carMaterial = new GTR::Material();
 	//car->prefab->root.children[0]->children[0]->material = carMaterial;
-	car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.2f;
-	car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.5f;
+	car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.0f;
+	car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.0f;
 
 	//house->prefab->root.material->roughness_factor = 0.2f;
 	//house->prefab->root.material->metallic_factor = 0.5f;
@@ -168,6 +168,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 
 	//This class will be the one in charge of rendering all 
 	renderer = new GTR::Renderer(); //here so we have opengl ready in constructor
+	renderer->random_points = renderer->generateSpherePoints(64, 1.0f, true);
 
 	//hide the cursor
 	SDL_ShowCursor(!mouse_locked); //hide or show the mouse
@@ -359,6 +360,7 @@ void Application::renderDebugGUI(void)
 	ImGui::ColorEdit4("BG color", bg_color.v);
 	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
 	ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
+	ImGui::Checkbox("Blur SSAO", &renderer->ssao_blurring);
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {
 		camera->renderInMenu();

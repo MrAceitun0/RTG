@@ -21,8 +21,12 @@ namespace GTR {
 		FBO* ssao_fbo;
 		Texture* ssao_blur;
 		FBO* illumination_fbo;
+		std::vector<Vector3> random_points;
+		bool ssao_blurring = false;
 
 		Renderer();
+
+		std::vector<Vector3> generateSpherePoints(int num, float radius, bool hemi);
 
 		void renderDeferred(Camera * camera);
 
