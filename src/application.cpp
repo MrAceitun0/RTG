@@ -66,10 +66,11 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	fbo->create(window_width, window_height);
 
 	car = new PrefabEntity(prefab_car, true);
-	//house = new PrefabEntity(prefab_house, true);
+	house = new PrefabEntity(prefab_house, true);
 	//Lets load some object to render
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	//house->prefab = GTR::Prefab::Get("data/prefabs/house/scene.gltf");
+	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
+	house->model.scale(100, 100, 100);
 	//GTR::Material* carMaterial = new GTR::Material();
 	//car->prefab->root.children[0]->children[0]->material = carMaterial;
 	car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.0f;
@@ -134,12 +135,12 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	prefab_plane->root.mesh = p;
 	prefab_plane->root.material = m;
 	plane = new PrefabEntity(prefab_plane, true);
-	plane->model.setTranslation(0.0, 3, 0.0);
+	//plane->model.setTranslation(0.0, 3, 0.0);
 
 	//add entities
 	Scene::scene->entities.push_back(plane);
-	Scene::scene->entities.push_back(car);
-	//Scene::scene->entities.push_back(house);
+	//Scene::scene->entities.push_back(car);
+	Scene::scene->entities.push_back(house);
 	Scene::scene->entities.push_back(spot);
 	Scene::scene->entities.push_back(spot2);
 	Scene::scene->entities.push_back(spot3);
