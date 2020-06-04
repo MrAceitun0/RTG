@@ -7,7 +7,6 @@
 
 class Scene {
 public:
-	
 	static Scene* scene; //singleton
 
 	std::vector<BaseEntity*> entities;
@@ -15,7 +14,8 @@ public:
 	bool pbr = false;
 	bool gBuffers = false;
 	bool has_gamma = true;
-
+	float ssao_bias = 0.005;
+	bool probes = false;
 
 	Scene() { scene = this; };
 

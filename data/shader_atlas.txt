@@ -8,6 +8,7 @@ deferred quad.vs deferred.fs
 deferred_ws basic.vs deferred.fs
 ssao quad.vs ssao.fs
 blur quad.vs blur.fs
+probe basic.vs probe.fs
 
 \basic.vs
 
@@ -585,6 +586,7 @@ uniform sampler2D u_normal_texture;
 uniform mat4 u_inverse_viewprojection;
 uniform mat4 u_viewprojection;
 uniform vec3 u_points[64];
+uniform float u_bias;
 
 in vec2 v_uv;
 out vec4 FragColor;
@@ -647,7 +649,7 @@ void main(){
 		proj.xy /= proj.w; //convert to clipspace from homogeneous
 
 		//apply a tiny bias to its z before converting to clip-space
-		proj.z = (proj.z - 0.005) / proj.w;
+		proj.z = (proj.z - u_bias) / proj.w;
 		proj.xyz = proj.xyz * 0.5 + vec3(0.5); //to [0..1]
 
 		//read p true depth
@@ -660,6 +662,7 @@ void main(){
 
 	//finally, compute the AO factor accordingly
 	float ao = float(num) / float(samples);
+	ao = pow(ao, 2);
 
 	FragColor = vec4(ao);
 
@@ -747,4 +750,20 @@ void main()
 
 	//calcule the position of the vertex using the matrices
 	gl_Position = u_viewprojection * vec4( v_world_position, 1.0 );
+}
+
+\probe.fs
+
+#version 330 core
+
+uniform mat4 u_viewprojection;
+uniform vec3 u_camera_position;
+uniform mat4 u_model;
+uniform vec3 u_coeffs[9];
+
+out vec4 FragColor;
+
+void main()
+{
+	FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }

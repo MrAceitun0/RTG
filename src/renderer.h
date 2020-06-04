@@ -28,6 +28,8 @@ namespace GTR {
 
 		std::vector<Vector3> generateSpherePoints(int num, float radius, bool hemi);
 
+		void renderProbe(Vector3 pos, float size, float* coeffs);
+
 		void renderDeferred(Camera * camera);
 
 		void renderScene(Camera * camera);

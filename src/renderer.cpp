@@ -8,10 +8,18 @@
 #include "material.h"
 #include "utils.h"
 #include "application.h"
+#include "sphericalharmonics.h"
 
 using namespace GTR;
 
 bool render_shadowmap = false;
+
+//struct to store probes
+struct sProbe {
+	Vector3 pos; //where is located
+	Vector3 index; //its index in the array 
+	SphericalHarmonics sh; //coeffs
+};
 
 Renderer::Renderer()
 {
@@ -44,6 +52,24 @@ std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool 
 			p.z *= -1.0;
 	}
 	return points;
+}
+
+void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
+{
+	Camera* camera = Camera::current;
+	Shader* shader = Shader::Get("probe");
+	Matrix44 model;
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	model.setTranslation(pos.x, pos.y, pos.z);
+	model.scale(size, size, size);
+	shader->enable();
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_camera_position", camera->eye);
+	shader->setUniform("u_model", model);
+	shader->setUniform3Array("u_coeffs", coeffs, 9);
+	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
 }
 
 void Renderer::renderDeferred(Camera* camera)
@@ -122,6 +148,15 @@ void Renderer::renderDeferred(Camera* camera)
 	//send info to reconstruct the world position
 	Matrix44 inv_vp = camera->viewprojection_matrix;
 	inv_vp.inverse();
+
+	//bind the texture we want to change
+	gbuffers_fbo->depth_texture->bind();
+	//disable using mipmaps
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//enable bilinear filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	gbuffers_fbo->depth_texture->unbind();
+
 	shader->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 0);
 	shader->setUniform("u_inverse_viewprojection", inv_vp);
 	shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 1);
@@ -129,6 +164,7 @@ void Renderer::renderDeferred(Camera* camera)
 	shader->setUniform("u_iRes", Vector2(1.0 / (float)gbuffers_fbo->depth_texture->width, 1.0 / (float)gbuffers_fbo->depth_texture->height));
 	//we will need the viewprojection to obtain the uv in the depthtexture of any random position of our world
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_bias", Scene::scene->ssao_bias);
 
 	//send random points so we can fetch around
 	shader->setUniform3Array("u_points", (float*)&random_points[0], random_points.size());
@@ -329,6 +365,21 @@ void Renderer::renderDeferred(Camera* camera)
 	else
 	{
 		illumination_fbo->color_textures[0]->toViewport();
+		if (Scene::scene->probes)
+		{
+			for (int x = -150; x < 150; x += 80)
+			{
+				for (int y = 10; y < 200; y += 80)
+				{
+					for (int z = -200; z < 200; z += 80)
+					{
+						sProbe p;
+						p.pos.set(x, y, z);
+						renderProbe(p.pos, 10, (float*)&p.sh);
+					}
+				}
+			}
+		}
 	}
 }
 

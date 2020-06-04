@@ -141,26 +141,26 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	Scene::scene->entities.push_back(plane);
 	//Scene::scene->entities.push_back(car);
 	Scene::scene->entities.push_back(house);
-	Scene::scene->entities.push_back(spot);
-	Scene::scene->entities.push_back(spot2);
-	Scene::scene->entities.push_back(spot3);
-	Scene::scene->entities.push_back(spot4);
-	Scene::scene->entities.push_back(spot5);
-	Scene::scene->entities.push_back(spot6);
+	//Scene::scene->entities.push_back(spot);
+	//Scene::scene->entities.push_back(spot2);
+	//Scene::scene->entities.push_back(spot3);
+	//Scene::scene->entities.push_back(spot4);
+	//Scene::scene->entities.push_back(spot5);
+	//Scene::scene->entities.push_back(spot6);
 	Scene::scene->entities.push_back(directional);
-	Scene::scene->entities.push_back(point);
-	Scene::scene->entities.push_back(point2);
-	Scene::scene->entities.push_back(point3);
-	Scene::scene->entities.push_back(point4);
-	Scene::scene->entities.push_back(point5);
-	Scene::scene->entities.push_back(point6);
-	Scene::scene->entities.push_back(point7);
-	Scene::scene->entities.push_back(point8);
-	Scene::scene->entities.push_back(point9);
-	Scene::scene->entities.push_back(point10);
-	Scene::scene->entities.push_back(point11);
-	Scene::scene->entities.push_back(point12);
-	Scene::scene->entities.push_back(point13);
+	//Scene::scene->entities.push_back(point);
+	//Scene::scene->entities.push_back(point2);
+	//Scene::scene->entities.push_back(point3);
+	//Scene::scene->entities.push_back(point4);
+	//Scene::scene->entities.push_back(point5);
+	//Scene::scene->entities.push_back(point6);
+	//Scene::scene->entities.push_back(point7);
+	//Scene::scene->entities.push_back(point8);
+	//Scene::scene->entities.push_back(point9);
+	//Scene::scene->entities.push_back(point10);
+	//Scene::scene->entities.push_back(point11);
+	//Scene::scene->entities.push_back(point12);
+	//Scene::scene->entities.push_back(point13);
 
 	// Create camera
 	camera = new Camera();
@@ -362,6 +362,9 @@ void Application::renderDebugGUI(void)
 	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
 	ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
 	ImGui::Checkbox("Blur SSAO", &renderer->ssao_blurring);
+	ImGui::DragFloat("SSAO Bias", &Scene::scene->ssao_bias, 0.001f, 0.0f, 0.2f);
+	ImGui::Checkbox("Probes", &Scene::scene->probes);
+
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {
 		camera->renderInMenu();
@@ -369,8 +372,8 @@ void Application::renderDebugGUI(void)
 	}
 
 	//example to show prefab info: first param must be unique!
-	if (car->prefab && ImGui::TreeNode(car->prefab, "Car")) {
-		car->prefab->root.renderInMenu();
+	if (house->prefab && ImGui::TreeNode(house->prefab, "House")) {
+		house->prefab->root.renderInMenu();
 		ImGui::TreePop();
 	}
 
