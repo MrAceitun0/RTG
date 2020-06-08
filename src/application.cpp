@@ -186,7 +186,6 @@ void Application::render(void)
 
 	if (!temp)
 		renderer->renderShadowmap();
-	//temp = true;
 
 	//fbo->bind();
 	// Clear the color and the depth buffer
@@ -207,21 +206,12 @@ void Application::render(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	renderer->renderDeferred(camera);
+	//renderer->renderScene(camera);
 
 	//fbo->unbind();
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 
-	/*Shader* shader_depth = Shader::Get("depth");
-	shader_depth->enable();
-	shader_depth->setUniform("u_camera_nearfar", Vector2(spot->light_camera->near_plane, spot->light_camera->far_plane));
-	*/
-
-	//fbo->color_textures[0]->toViewport();
-	//glViewport(0, 0, 250, 250);
-	//spot->shadow_fbo->depth_texture->toViewport(shader_depth);
-	//glViewport(250, 0, 250, 250);
-	//directional->shadow_fbo->depth_texture->toViewport();
 
 	/*//Draw the floor grid, helpful to have a reference point
 	if(render_debug)

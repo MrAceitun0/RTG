@@ -14,12 +14,6 @@ using namespace GTR;
 
 bool render_shadowmap = false;
 
-//struct to store probes
-struct sProbe {
-	Vector3 pos; //where is located
-	Vector3 index; //its index in the array 
-	SphericalHarmonics sh; //coeffs
-};
 
 Renderer::Renderer()
 {
@@ -27,6 +21,7 @@ Renderer::Renderer()
 	ssao_fbo = NULL;
 	ssao_blur = NULL;
 	illumination_fbo = NULL;
+	irr_fbo = NULL;
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -70,6 +65,111 @@ void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
 	shader->setUniform("u_model", model);
 	shader->setUniform3Array("u_coeffs", coeffs, 9);
 	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
+}
+
+void GTR::Renderer::computeIrradiance(Scene * scene)
+{
+	
+	probes.clear();
+	//define the corners of the axis aligned grid
+	//this can be done using the boundings of our scene
+	Vector3 start_pos(-55, 10, -170);
+	Vector3 end_pos(180, 150, 80);
+
+	//define how many probes you want per dimension
+	Vector3 dim(8, 6, 12);
+
+	//compute the vector from one corner to the other
+	Vector3 delta = (end_pos - start_pos);
+
+	//and scale it down according to the subdivisions
+	//we substract one to be sure the last probe is at end pos
+	delta.x /= (dim.x - 1);
+	delta.y /= (dim.y - 1);
+	delta.z /= (dim.z - 1);
+
+	//now delta give us the distance between probes in every axis
+
+
+	for (int z = 0; z < dim.z; ++z)
+		for (int y = 0; y < dim.y; ++y)
+			for (int x = 0; x < dim.x; ++x)
+			{
+				sProbe p;
+				p.index.set(x, y, z);
+				p.pos = start_pos + delta * Vector3(x, y, z);
+				probes.push_back(p);
+			}
+
+
+	if (!irr_fbo)
+	{
+		ssao_fbo = new FBO();
+		ssao_fbo->create(64, 64,1,GL_RGB,GL_FLOAT);
+	}
+
+	FloatImage images[6]; //here we will store the six views
+
+	//set the fov to 90 and the aspect to 1
+	Camera cam;
+	cam.setPerspective(90, 1, 0.1, 1000);
+
+	for (int iP = 0; iP < probes.size(); ++iP)
+	{
+		sProbe& p = probes[iP];
+
+		for (int i = 0; i < 6; ++i) //for every cubemap face
+		{
+			//compute camera orientation using defined vectors
+			Vector3 eye = p.pos;
+			Vector3 front = cubemapFaceNormals[i][2];
+			Vector3 center = p.pos + front;
+			Vector3 up = cubemapFaceNormals[i][1];
+			cam.lookAt(eye, center, up);
+			cam.enable();
+
+			//render the scene from this point of view
+			irr_fbo->bind();
+			//renderScene(&cam);//renderforward
+			irr_fbo->unbind();
+
+			//read the pixels back and store in a FloatImage
+			images[i].fromTexture(irr_fbo->color_textures[0]);
+		}
+		//compute the coefficients given the six images
+		p.sh = computeSH(images);
+	}
+
+	// create the texture to store the probes(do this ONCE!!!)
+	probes_texture = new Texture(
+			9, //9 coefficients per probe
+			probes.size(), //as many rows as probes
+			GL_RGB, //3 channels per coefficient
+			GL_FLOAT); //they require a high range
+
+			//we must create the color information for the texture. because every SH are 27 floats in the RGB,RGB,... order, we can create an array of SphericalHarmonics and use it as pixels of the texture
+	SphericalHarmonics* sh_data = NULL;
+	sh_data = new SphericalHarmonics[dim.x * dim.y * dim.z];
+
+	//here we fill the data of the array with our probes in x,y,z order...
+	for (int i = 0;i < probes.size();i++) {
+
+		sProbe& probe = probes[i];
+		int index = probe.index.x + probe.index.y*dim.x + probe.index.z*(dim.x*dim.z);
+		sh_data[index] = probe.sh;
+	}
+
+	//now upload the data to the GPU
+	probes_texture->upload(GL_RGB, GL_FLOAT, false, (uint8*)sh_data);
+
+	//disable any texture filtering when reading
+	probes_texture->bind();
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	//always free memory after allocating it!!!
+	delete[] sh_data;
+
 }
 
 void Renderer::renderDeferred(Camera* camera)
@@ -397,11 +497,12 @@ void GTR::Renderer::renderScene(Camera * camera)
 void Renderer::renderPrefab(const Matrix44& model, GTR::Prefab* prefab, Camera* camera)
 {
 	//assign the model to the root node
-	renderNode(model, &prefab->root, camera);
+	//renderNodeDeferred(model, &prefab->root, camera);
+	renderNodeForward(model, &prefab->root, camera);
 }
 
 //renders a node of the prefab and its children
-void Renderer::renderNode(const Matrix44& prefab_model, GTR::Node* node, Camera* camera)
+void Renderer::renderNodeForward(const Matrix44& prefab_model, GTR::Node* node, Camera* camera)
 {
 	if (!node->visible)
 		return;
@@ -418,81 +519,40 @@ void Renderer::renderNode(const Matrix44& prefab_model, GTR::Node* node, Camera*
 		if (camera->testBoxInFrustum(world_bounding.center, world_bounding.halfsize))
 		{
 			//render node mesh
-			//renderMeshWithLight(node_model, node->mesh, node->material, camera);
-			renderMeshDeferred(node_model, node->mesh, node->material, camera);
-			//node->mesh->renderBounding(node_model, true);
+			renderMeshWithLight(node_model, node->mesh, node->material, camera);
 		}
 	}
 
 	//iterate recursively with children
 	for (int i = 0; i < node->children.size(); ++i)
-		renderNode(prefab_model, node->children[i], camera);
+		renderNodeForward(prefab_model, node->children[i], camera);
 }
 
-//renders a mesh given its transform and material
-void Renderer::renderMeshWithMaterial(const Matrix44 model, Mesh* mesh, GTR::Material* material, Camera* camera)
+void Renderer::renderNodeDeferred(const Matrix44& prefab_model, GTR::Node* node, Camera* camera)
 {
-	//in case there is nothing to do
-	if (!mesh || !mesh->getNumVertices() || !material)
+	if (!node->visible)
 		return;
+	//compute global matrix
+	Matrix44 node_model = node->getGlobalMatrix(true) * prefab_model;
 
-	//define locals to simplify coding
-	Shader* shader = NULL;
-	Texture* texture = NULL;
-
-	texture = material->color_texture;
-	//texture = material->emissive_texture;
-	//texture = material->metallic_roughness_texture;
-	//texture = material->normal_texture;
-	//texture = material->occlusion_texture;
-
-	//select the blending
-	if (material->alpha_mode == GTR::AlphaMode::BLEND)
+	//does this node have a mesh? then we must render it
+	if (node->mesh && node->material)
 	{
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		//compute the bounding box of the object in world space (by using the mesh bounding box transformed to world space)
+		BoundingBox world_bounding = transformBoundingBox(node_model, node->mesh->box);
+
+		//if bounding box is inside the camera frustum then the object is probably visible
+		if (camera->testBoxInFrustum(world_bounding.center, world_bounding.halfsize))
+		{
+			renderMeshDeferred(node_model, node->mesh, node->material, camera);
+		}
 	}
-	else
-		glDisable(GL_BLEND);
 
-	//select if render both sides of the triangles
-	if (material->two_sided)
-		glDisable(GL_CULL_FACE);
-	else
-		glEnable(GL_CULL_FACE);
-
-	//chose a shader
-	if (texture)
-		shader = Shader::Get("texture");
-	else
-		shader = Shader::Get("flat");
-
-	//no shader? then nothing to render
-	if (!shader)
-		return;
-	shader->enable();
-
-	//upload uniforms
-	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-	shader->setUniform("u_camera_position", camera->eye);
-	shader->setUniform("u_model", model);
-
-	shader->setUniform("u_color", material->color);
-	if (texture)
-		shader->setUniform("u_texture", texture, 0);
-
-	//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
-	shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
-
-	//do the draw call that renders the mesh into the screen
-	mesh->render(GL_TRIANGLES);
-
-	//disable shader
-	shader->disable();
-
-	//set the render state as it was before to avoid problems with future renders
-	glDisable(GL_BLEND);
+	//iterate recursively with children
+	for (int i = 0; i < node->children.size(); ++i)
+		renderNodeDeferred(prefab_model, node->children[i], camera);
 }
+
 void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Material* material, Camera* camera)
 {
 	//in case there is nothing to do
@@ -506,11 +566,7 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 	Texture* texture = NULL;
 
 	texture = material->color_texture;
-	//texture = material->emissive_texture;
-	//texture = material->metallic_roughness_texture;
-	//texture = material->normal_texture;
-	//texture = material->occlusion_texture;
-
+	
 
 	if (render_shadowmap) { //if we are rendering shadowmap
 
