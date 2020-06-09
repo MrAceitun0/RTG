@@ -756,6 +756,8 @@ void main()
 
 #version 330 core
 
+in vec3 a_normal;
+
 uniform mat4 u_viewprojection;
 uniform vec3 u_camera_position;
 uniform mat4 u_model;
@@ -763,7 +765,43 @@ uniform vec3 u_coeffs[9];
 
 out vec4 FragColor;
 
+const float Pi = 3.141592654;
+const float CosineA0 = Pi;
+const float CosineA1 = (2.0 * Pi) / 3.0;
+const float CosineA2 = Pi * 0.25;
+struct SH9 { float c[9]; }; //to store weights
+struct SH9Color { vec3 c[9]; }; //to store colors
+
+SH9 SHCosineLobe(vec3 dir) //SH9
+{
+	SH9 sh;
+
+	// Band 0
+	sh.c[0] = 0.282095 * CosineA0;
+	// Band 1
+	sh.c[1] = 0.488603 * dir.y * CosineA1; 
+	sh.c[2] = 0.488603 * dir.z * CosineA1;
+	sh.c[3] = 0.488603 * dir.x * CosineA1;
+	// Band 2
+	sh.c[4] = 1.092548 * dir.x * dir.y * CosineA2;
+	sh.c[5] = 1.092548 * dir.y * dir.z * CosineA2;
+	sh.c[6] = 0.315392 * (3.0 * dir.z * dir.z - 1.0) * CosineA2;
+	sh.c[7] = 1.092548 * dir.x * dir.z * CosineA2;
+	sh.c[8] = 0.546274 * (dir.x * dir.x - dir.y * dir.y) * CosineA2;
+
+	return sh;
+}
+
+
 void main()
 {
-	FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+	// Compute the cosine lobe in SH, oriented about the normal direction
+	SH9 shCosine = SHCosineLobe(normalize(a_normal));
+
+	// Compute the SH dot product to get irradiance
+	vec3 irradiance = vec3(0.0);
+	for(int i = 0; i < 9; ++i)
+		irradiance += u_coeffs[i] * shCosine.c[i];
+
+	FragColor = vec4(irradiance, 1.0);
 }
