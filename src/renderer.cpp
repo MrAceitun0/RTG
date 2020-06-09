@@ -67,9 +67,8 @@ void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
 	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
 }
 
-void GTR::Renderer::computeIrradiance(Scene * scene)
+void GTR::Renderer::computeIrradiance()
 {
-	
 	probes.clear();
 	//define the corners of the axis aligned grid
 	//this can be done using the boundings of our scene
@@ -89,8 +88,6 @@ void GTR::Renderer::computeIrradiance(Scene * scene)
 	delta.z /= (dim.z - 1);
 
 	//now delta give us the distance between probes in every axis
-
-
 	for (int z = 0; z < dim.z; ++z)
 		for (int y = 0; y < dim.y; ++y)
 			for (int x = 0; x < dim.x; ++x)
@@ -104,10 +101,10 @@ void GTR::Renderer::computeIrradiance(Scene * scene)
 
 	if (!irr_fbo)
 	{
-		ssao_fbo = new FBO();
-		ssao_fbo->create(64, 64,1,GL_RGB,GL_FLOAT);
+		irr_fbo = new FBO();
+		irr_fbo->create(64, 64,1,GL_RGB,GL_FLOAT);
 	}
-
+	
 	FloatImage images[6]; //here we will store the six views
 
 	//set the fov to 90 and the aspect to 1
@@ -130,7 +127,7 @@ void GTR::Renderer::computeIrradiance(Scene * scene)
 
 			//render the scene from this point of view
 			irr_fbo->bind();
-			//renderScene(&cam);//renderforward
+			renderScene(&cam, false);//renderforward
 			irr_fbo->unbind();
 
 			//read the pixels back and store in a FloatImage
@@ -139,21 +136,24 @@ void GTR::Renderer::computeIrradiance(Scene * scene)
 		//compute the coefficients given the six images
 		p.sh = computeSH(images);
 	}
-
+	
 	// create the texture to store the probes(do this ONCE!!!)
-	probes_texture = new Texture(
+	if (!probes_texture)
+	{
+		probes_texture = new Texture(
 			9, //9 coefficients per probe
 			probes.size(), //as many rows as probes
 			GL_RGB, //3 channels per coefficient
 			GL_FLOAT); //they require a high range
-
-			//we must create the color information for the texture. because every SH are 27 floats in the RGB,RGB,... order, we can create an array of SphericalHarmonics and use it as pixels of the texture
+	}
+		
+	//we must create the color information for the texture. because every SH are 27 floats in the RGB,RGB,... order, we can create an array of SphericalHarmonics and use it as pixels of the texture
 	SphericalHarmonics* sh_data = NULL;
 	sh_data = new SphericalHarmonics[dim.x * dim.y * dim.z];
 
 	//here we fill the data of the array with our probes in x,y,z order...
-	for (int i = 0;i < probes.size();i++) {
-
+	for (int i = 0;i < probes.size();i++) 
+	{
 		sProbe& probe = probes[i];
 		int index = probe.index.x + probe.index.y*dim.x + probe.index.z*(dim.x*dim.z);
 		sh_data[index] = probe.sh;
@@ -169,7 +169,6 @@ void GTR::Renderer::computeIrradiance(Scene * scene)
 
 	//always free memory after allocating it!!!
 	delete[] sh_data;
-
 }
 
 void Renderer::renderDeferred(Camera* camera)
@@ -218,7 +217,7 @@ void Renderer::renderDeferred(Camera* camera)
 	//render everything 
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 	for(int i=0;i<prefab_vector.size();i++)
-		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera);
+		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, true);
 
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
@@ -304,6 +303,12 @@ void Renderer::renderDeferred(Camera* camera)
 			GL_RGB, 		
 			GL_UNSIGNED_BYTE, 
 			false);		
+	}
+
+	if (first)
+	{
+		first = false;
+		computeIrradiance();
 	}
 
 	//start rendering to the illumination fbo
@@ -467,38 +472,32 @@ void Renderer::renderDeferred(Camera* camera)
 		illumination_fbo->color_textures[0]->toViewport();
 		if (Scene::scene->probes)
 		{
-			for (int x = -150; x < 150; x += 80)
+			for (int i = 0; i < probes.size(); i++)
 			{
-				for (int y = 10; y < 200; y += 80)
-				{
-					for (int z = -200; z < 200; z += 80)
-					{
-						sProbe p;
-						p.pos.set(x, y, z);
-						renderProbe(p.pos, 10, (float*)&p.sh);
-					}
-				}
+				renderProbe(probes[i].pos, 10, (float*)&probes[i].sh);
 			}
 		}
 	}
 }
 
-void GTR::Renderer::renderScene(Camera * camera)
+void GTR::Renderer::renderScene(Camera * camera, bool deferred)
 {
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 
 	for (int i = 0; i < prefab_vector.size();i++) {
-		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera);
+		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, deferred);
 	}
 
 }
 
 //renders all the prefab
-void Renderer::renderPrefab(const Matrix44& model, GTR::Prefab* prefab, Camera* camera)
+void Renderer::renderPrefab(const Matrix44& model, GTR::Prefab* prefab, Camera* camera, bool deferred)
 {
 	//assign the model to the root node
-	//renderNodeDeferred(model, &prefab->root, camera);
-	renderNodeForward(model, &prefab->root, camera);
+	if(deferred)
+		renderNodeDeferred(model, &prefab->root, camera);
+	else
+		renderNodeForward(model, &prefab->root, camera);
 }
 
 //renders a node of the prefab and its children
@@ -712,7 +711,7 @@ void GTR::Renderer::renderShadowmap()
 			light_vector[i]->light_camera->enable();
 
 			//render
-			renderScene(light_vector[i]->light_camera);
+			renderScene(light_vector[i]->light_camera, true);
 
 			//disable it to render back to the screen
 			light_vector[i]->shadow_fbo->unbind();

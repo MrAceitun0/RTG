@@ -73,8 +73,8 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	house->model.scale(100, 100, 100);
 	//GTR::Material* carMaterial = new GTR::Material();
 	//car->prefab->root.children[0]->children[0]->material = carMaterial;
-	car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.0f;
-	car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.0f;
+	//car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.0f;
+	//car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.0f;
 
 	//house->prefab->root.material->roughness_factor = 0.2f;
 	//house->prefab->root.material->metallic_factor = 0.5f;
@@ -206,7 +206,7 @@ void Application::render(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	renderer->renderDeferred(camera);
-	//renderer->renderScene(camera);
+	//renderer->renderScene(camera, true);
 
 	//fbo->unbind();
 	glDisable(GL_CULL_FACE);

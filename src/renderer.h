@@ -15,6 +15,7 @@ namespace GTR {
 	//struct to store probes
 	struct sProbe {
 		Vector3 pos; //where is located
+		Vector3 local;
 		Vector3 index; //its index in the array 
 		SphericalHarmonics sh; //coeffs
 	};
@@ -28,11 +29,12 @@ namespace GTR {
 		FBO* gbuffers_fbo;
 		FBO* ssao_fbo;
 		Texture* ssao_blur;
-		Texture *probes_texture;
+		Texture* probes_texture;
 		FBO* illumination_fbo;
 		FBO* irr_fbo;
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
+		bool first = true;
 
 		bool ssao_blurring = false;
 
@@ -42,13 +44,13 @@ namespace GTR {
 
 		void renderProbe(Vector3 pos, float size, float* coeffs);
 
-		void computeIrradiance(Scene* scene);
+		void computeIrradiance();
 
 		void renderDeferred(Camera * camera);
 
-		void renderScene(Camera * camera);
+		void renderScene(Camera * camera, bool deferred);
 
-		void renderPrefab(const Matrix44 & model, GTR::Prefab * prefab, Camera * camera);
+		void renderPrefab(const Matrix44 & model, GTR::Prefab * prefab, Camera * camera, bool deferred);
 
 		void renderNodeForward(const Matrix44 & prefab_model, GTR::Node * node, Camera * camera);
 		void renderNodeDeferred(const Matrix44 & prefab_model, GTR::Node * node, Camera * camera);
