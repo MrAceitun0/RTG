@@ -68,10 +68,12 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	car = new PrefabEntity(prefab_car, true);
 	house = new PrefabEntity(prefab_house, true);
 	//Lets load some object to render
-	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
+	//car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
 	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
 	house->model.scale(100, 100, 100);
-	//GTR::Material* carMaterial = new GTR::Material();
+	GTR::Material* carMaterial = new GTR::Material();
+	house->prefab->root.children[0]->material = carMaterial;
+
 	//car->prefab->root.children[0]->children[0]->material = carMaterial;
 	//car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.0f;
 	//car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.0f;

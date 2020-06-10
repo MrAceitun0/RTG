@@ -16,7 +16,7 @@ namespace GTR {
 	struct sProbe {
 		Vector3 pos; //where is located
 		Vector3 local;
-		Vector3 index; //its index in the array 
+		int index; //its index in the array 
 		SphericalHarmonics sh; //coeffs
 	};
 	

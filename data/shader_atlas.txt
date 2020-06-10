@@ -104,6 +104,9 @@ in vec4 v_color;
 
 uniform vec4 u_color;//material->color
 uniform sampler2D u_texture;//texture
+uniform sampler2D u_emissive;
+uniform vec3 u_emissive_factor;
+
 uniform float u_time;
 uniform float u_alpha_cutoff;//alpha threshold
 uniform int u_light_type;
@@ -215,7 +218,8 @@ void main()
 	/***********************************************/
 	
 	//apply to final pixel color
-	
+	//emissive texture
+	light += texture2D( u_emissive, uv).xyz * u_emissive_factor;
 	color.xyz *= light*u_light_intensity; 
 
 	FragColor = color;
@@ -290,6 +294,7 @@ uniform sampler2D u_color_texture;
 uniform sampler2D u_normal_texture;
 uniform sampler2D u_extra_texture;
 uniform sampler2D u_depth_texture;
+
 uniform mat4 u_inverse_viewprojection;
 uniform vec2 u_iRes;
 uniform bool u_pbr;
@@ -756,7 +761,7 @@ void main()
 
 #version 330 core
 
-in vec3 a_normal;
+in vec3 v_normal;
 
 uniform mat4 u_viewprojection;
 uniform vec3 u_camera_position;
@@ -796,7 +801,7 @@ SH9 SHCosineLobe(vec3 dir) //SH9
 void main()
 {
 	// Compute the cosine lobe in SH, oriented about the normal direction
-	SH9 shCosine = SHCosineLobe(normalize(a_normal));
+	SH9 shCosine = SHCosineLobe(normalize(v_normal));
 
 	// Compute the SH dot product to get irradiance
 	vec3 irradiance = vec3(0.0);

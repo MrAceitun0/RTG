@@ -65,6 +65,7 @@ void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
 	shader->setUniform("u_model", model);
 	shader->setUniform3Array("u_coeffs", coeffs, 9);
 	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
+	shader->disable();
 }
 
 void GTR::Renderer::computeIrradiance()
@@ -88,12 +89,16 @@ void GTR::Renderer::computeIrradiance()
 	delta.z /= (dim.z - 1);
 
 	//now delta give us the distance between probes in every axis
+
 	for (int z = 0; z < dim.z; ++z)
 		for (int y = 0; y < dim.y; ++y)
 			for (int x = 0; x < dim.x; ++x)
 			{
 				sProbe p;
-				p.index.set(x, y, z);
+				p.local.set(x, y, z);
+				//index in the linear array
+				p.index = x + y * dim.x + z * dim.x * dim.y;
+				//and its position
 				p.pos = start_pos + delta * Vector3(x, y, z);
 				probes.push_back(p);
 			}
@@ -155,7 +160,7 @@ void GTR::Renderer::computeIrradiance()
 	for (int i = 0;i < probes.size();i++) 
 	{
 		sProbe& probe = probes[i];
-		int index = probe.index.x + probe.index.y*dim.x + probe.index.z*(dim.x*dim.z);
+		int index = probe.index;
 		sh_data[index] = probe.sh;
 	}
 
@@ -340,6 +345,7 @@ void Renderer::renderDeferred(Camera* camera)
 			sh->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
 			sh->setUniform("u_extra_texture", gbuffers_fbo->color_textures[2], 2);
 			sh->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 3);
+			
 			sh->setUniform("u_hasgamma", Scene::scene->has_gamma);
 			sh->setUniform("u_ssao", ssao_fbo->color_textures[0], 4);
 
@@ -737,11 +743,12 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 	Shader* shader = NULL;
 	Texture* texture = NULL;
 	Texture* texture_met_rough = NULL;
+	Texture* texture_emissive = NULL;
 
 
 	texture = material->color_texture;
 	texture_met_rough = material->metallic_roughness_texture;
-	//texture = material->emissive_texture;
+	//texture_emissive = material->emissive_texture;
 	//texture = material->metallic_roughness_texture;
 	//texture = material->normal_texture;
 	//texture = material->occlusion_texture;
@@ -804,6 +811,8 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		
 		shader->setUniform("u_metalness", material->metallic_factor);
 		shader->setUniform("u_roughness", material->roughness_factor);
+		//shader->setUniform("u_emissive", texture_emissive,1);
+		shader->setUniform("u_emissive_factor", material->emissive_factor);
 
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
