@@ -53,19 +53,24 @@ void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
 {
 	Camera* camera = Camera::current;
 	Shader* shader = Shader::Get("probe");
-	Matrix44 model;
+	Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
+
 	glEnable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
+
+	Matrix44 model;
 	model.setTranslation(pos.x, pos.y, pos.z);
 	model.scale(size, size, size);
+
 	shader->enable();
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
 	shader->setUniform("u_model", model);
 	shader->setUniform3Array("u_coeffs", coeffs, 9);
-	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
-	shader->disable();
+
+	mesh->render(GL_TRIANGLES);
+
 }
 
 void GTR::Renderer::computeIrradiance()
@@ -200,20 +205,20 @@ void Renderer::renderDeferred(Camera* camera)
 	gbuffers_fbo->enableSingleBuffer(0);
 
 	//clear GB0 with the color (and depth)
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(Scene::scene->bg_color.x, Scene::scene->bg_color.y, Scene::scene->bg_color.z, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//and now enable the second GB to clear it to black
 	gbuffers_fbo->enableSingleBuffer(1);
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	gbuffers_fbo->enableSingleBuffer(2);
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	gbuffers_fbo->enableSingleBuffer(3);
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	gbuffers_fbo->enableSingleBuffer(3); 
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	//enable all buffers back
@@ -310,17 +315,12 @@ void Renderer::renderDeferred(Camera* camera)
 			false);		
 	}
 
-	if (first)
-	{
-		first = false;
-		computeIrradiance();
-	}
-
 	//start rendering to the illumination fbo
 	illumination_fbo->bind();
 
+
 	//clear GB0 with the color (and depth)
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	std::vector<Light*> light_vector = Scene::scene->getVisibleLights();
@@ -454,7 +454,6 @@ void Renderer::renderDeferred(Camera* camera)
 	//and render the texture into the screen
 	if (Scene::scene->gBuffers)
 	{
-
 		Shader* shader_depth = Shader::Get("depth");
 		shader_depth->enable();
 		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
@@ -473,6 +472,11 @@ void Renderer::renderDeferred(Camera* camera)
 
 		glViewport(0, 0, w, h);
 	}
+	else if (Scene::scene->showIrrText)
+	{
+		glViewport(0, 0, w, h);
+		probes_texture->toViewport();
+	}
 	else
 	{
 		illumination_fbo->color_textures[0]->toViewport();
@@ -480,7 +484,7 @@ void Renderer::renderDeferred(Camera* camera)
 		{
 			for (int i = 0; i < probes.size(); i++)
 			{
-				renderProbe(probes[i].pos, 10, (float*)&probes[i].sh);
+				renderProbe(probes[i].pos, 5, (float*)&probes[i].sh);
 			}
 		}
 	}
@@ -493,7 +497,6 @@ void GTR::Renderer::renderScene(Camera * camera, bool deferred)
 	for (int i = 0; i < prefab_vector.size();i++) {
 		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, deferred);
 	}
-
 }
 
 //renders all the prefab
@@ -811,8 +814,8 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		
 		shader->setUniform("u_metalness", material->metallic_factor);
 		shader->setUniform("u_roughness", material->roughness_factor);
-		//shader->setUniform("u_emissive", texture_emissive,1);
-		shader->setUniform("u_emissive_factor", material->emissive_factor);
+		//shader->setUniform("u_emissive", texture_emissive, 2);
+		//shader->setUniform("u_emissive_factor", material->emissive_factor);
 
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);

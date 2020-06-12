@@ -18,7 +18,6 @@
 #include <cstdio>
 
 Application* Application::instance = nullptr;
-Vector4 bg_color(0.1, 0.1, 0.1, 1.0);
 
 Camera* camera = nullptr;
 GTR::Prefab* prefab_car = nullptr;
@@ -31,6 +30,7 @@ FBO* fbo;
 float cam_speed = 10;
 
 Scene* Scene::scene = nullptr;
+
 PrefabEntity* car,*plane,*house;
 
 Light *directional; //{DIRECTIONAL, SPOT, POINT} 0,1,2
@@ -56,6 +56,8 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	elapsed_time = 0.0f;
 	mouse_locked = false;
 	Scene::scene = new Scene();
+	Scene::scene->bg_color = Vector4(0.1, 0.1, 0.1, 1.0);
+
 	//loads and compiles several shaders from one single file
     //change to "data/shader_atlas_osx.txt" if you are in XCODE
 	if(!Shader::LoadAtlas("data/shader_atlas.txt"))
@@ -184,12 +186,11 @@ void Application::render(void)
 	checkGLErrors();
 
 	//set the clear color (the background color)
-	glClearColor(bg_color.x, bg_color.y, bg_color.z, bg_color.w );
+	glClearColor(1.0, 0.0, 0.0, 1.0);
 
 	if (!temp)
 		renderer->renderShadowmap();
 
-	//fbo->bind();
 	// Clear the color and the depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     checkGLErrors();
@@ -208,16 +209,9 @@ void Application::render(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	renderer->renderDeferred(camera);
-	//renderer->renderScene(camera, true);
 
-	//fbo->unbind();
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
-
-
-	/*//Draw the floor grid, helpful to have a reference point
-	if(render_debug)
-		drawGrid();*/
 }
 
 void Application::update(double seconds_elapsed)
@@ -350,12 +344,15 @@ void Application::renderDebugGUI(void)
 	ImGui::Text(getGPUStats().c_str());					   // Display some text (you can use a format strings too)
 
 	ImGui::Checkbox("Wireframe", &render_wireframe);
-	ImGui::ColorEdit4("BG color", bg_color.v);
+	ImGui::ColorEdit4("BG color", Scene::scene->bg_color.v);
 	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
 	ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
 	ImGui::Checkbox("Blur SSAO", &renderer->ssao_blurring);
 	ImGui::DragFloat("SSAO Bias", &Scene::scene->ssao_bias, 0.001f, 0.0f, 0.2f);
+	if(ImGui::Button("Compute Irradiance"))
+		renderer->computeIrradiance();
 	ImGui::Checkbox("Probes", &Scene::scene->probes);
+	ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
 
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {

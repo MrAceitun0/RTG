@@ -33,6 +33,7 @@ void Material::renderInMenu()
 	ImGui::ColorEdit4("Color", color.v); // Edit 4 floats representing a color + alpha
 	ImGui::SliderFloat("Metalness", &metallic_factor, 0.0f, 1.0f);
 	ImGui::SliderFloat("Roughness", &roughness_factor, 0.0f, 1.0f);
+	ImGui::ColorEdit3("Emissive color", emissive_factor.v);
 	if (color_texture && ImGui::TreeNode(color_texture, "Color Texture"))
 	{
 		int w = ImGui::GetColumnWidth();

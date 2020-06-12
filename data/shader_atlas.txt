@@ -294,6 +294,8 @@ uniform sampler2D u_color_texture;
 uniform sampler2D u_normal_texture;
 uniform sampler2D u_extra_texture;
 uniform sampler2D u_depth_texture;
+uniform sampler2D u_emissive;
+uniform vec3 u_emissive_factor;
 
 uniform mat4 u_inverse_viewprojection;
 uniform vec2 u_iRes;
@@ -547,6 +549,8 @@ vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,ve
 
 	//modulate direct light by light received
 	light += direct * lightParams;
+	light += texture2D( u_emissive, uv).xyz * u_emissive_factor;
+
 	return light;
 
 }
