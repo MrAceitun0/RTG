@@ -22,6 +22,8 @@ Renderer::Renderer()
 	ssao_blur = NULL;
 	illumination_fbo = NULL;
 	irr_fbo = NULL;
+	reflections_fbo = NULL;
+	environment = CubemapFromHDRE("data/panorama.hdre");;
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -176,6 +178,7 @@ void GTR::Renderer::computeIrradiance()
 	probes_texture->bind();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	
 
 	//always free memory after allocating it!!!
 	delete[] sh_data;
@@ -622,6 +625,7 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		if (texture)
 			shader->setUniform("u_texture", texture, 0);
 		shader->setUniform("u_ambient_light", Scene::scene->ambient);
+		shader->setUniform("u_emissive_factor", material->emissive_factor);
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
 
@@ -657,6 +661,7 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 
 				//we will also need the shadow bias
 				shader->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
+				
 			}
 
 			//pass the light data to the shader
@@ -735,7 +740,6 @@ void GTR::Renderer::renderShadowmap()
 	
 	render_shadowmap = false;
 }
-
 void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera)
 {
 	//in case there is nothing to do
@@ -811,9 +815,11 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		}
 		else
 			shader->setUniform("u_hasmetal", false);
-		
+
 		shader->setUniform("u_metalness", material->metallic_factor);
 		shader->setUniform("u_roughness", material->roughness_factor);
+		shader->setUniform("u_emissive_factor", material->emissive_factor);
+
 		//shader->setUniform("u_emissive", texture_emissive, 2);
 		//shader->setUniform("u_emissive_factor", material->emissive_factor);
 
@@ -829,5 +835,84 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		//set the render state as it was before to avoid problems with future renders
 		glDisable(GL_BLEND);
 	}
+
+}
+
+void GTR::Renderer::renderSkyBox(Camera* camera)
+{
+	if (!environment) 
+		return;
+	//create the probe
+	sReflectionProbe* probe = new sReflectionProbe;
+
+	//set it up
+	probe->pos.set(90, 56, -72);
+	probe->cubemap = new Texture();
+	probe->cubemap->createCubemap(
+		512, 512,
+		NULL,
+		GL_RGB, GL_UNSIGNED_INT, false);
+
+	//add it to the list
+	reflection_probes.push_back(probe);
+
+	Camera cam;
+	cam.setPerspective(90, 1, 0.1, 1000);
+
+	//render the view from every side
+	for (int i = 0; i < 6; ++i)
+	{
+		//assign cubemap face to FBO
+		reflections_fbo->setTexture(probe->cubemap, i);
+
+		//bind FBO
+		reflections_fbo->bind();
+
+		//render view
+		Vector3 eye = probe->pos;
+		Vector3 center = probe->pos + cubemapFaceNormals[i][2];
+		Vector3 up = cubemapFaceNormals[i][1];
+		cam.lookAt(eye, center, up);
+		cam.enable();
+		renderScene(&cam, false);//renderforward
+		reflections_fbo->unbind();
+	}
+
+	//generate the mipmaps
+	probe->cubemap->generateMipmaps();
+
+
 	
+	Shader* shader = Shader::Get("skybox");
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	Matrix44 model;
+	model.setTranslation(camera->eye.x, camera->eye.y, camera->eye.z);
+	model.scale(10, 10, 10);
+	shader->enable();
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_camera_position", camera->eye);
+	shader->setUniform("u_model", model);
+	shader->setUniform("u_texture", environment, 0);
+	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+	shader->disable();
+
+}
+Texture* GTR::CubemapFromHDRE(const char* filename)
+{
+	HDRE* hdre = new HDRE();
+	if (!hdre->load(filename))
+	{
+		delete hdre;
+		return NULL;
+	}
+
+	Texture* texture = new Texture();
+	texture->createCubemap(hdre->width, hdre->height, (Uint8**)hdre->getFaces(0), hdre->header.numChannels == 3 ? GL_RGB : GL_RGBA, GL_FLOAT);
+	for (int i = 1; i < 6; ++i)
+		texture->uploadCubemap(texture->format, texture->type, false, (Uint8**)hdre->getFaces(i), GL_RGBA32F, i);
+	return texture;
 }

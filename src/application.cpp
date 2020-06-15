@@ -71,17 +71,14 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	house = new PrefabEntity(prefab_house, true);
 	//Lets load some object to render
 	//car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
+
 	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
 	house->model.scale(100, 100, 100);
-	GTR::Material* carMaterial = new GTR::Material();
-	house->prefab->root.children[0]->material = carMaterial;
+	GTR::Material* hMaterial = new GTR::Material();
+	house->prefab->root.children[1]->material->metallic_roughness_texture= Texture::Get("data/prefabs/brutalism/concrete_rough_4k.png");
+	house->prefab->root.children[1]->material->metallic_factor = 0.0f;
+	house->prefab->root.children[1]->material->roughness_factor = 0.1f;
 
-	//car->prefab->root.children[0]->children[0]->material = carMaterial;
-	//car->prefab->root.children[0]->children[0]->material->roughness_factor = 0.0f;
-	//car->prefab->root.children[0]->children[0]->material->metallic_factor = 0.0f;
-
-	//house->prefab->root.material->roughness_factor = 0.2f;
-	//house->prefab->root.material->metallic_factor = 0.5f;
 
 	point = new Light(Vector3(1, 0, 0), light_type::POINT_L, true, 0, Vector3(50, 100, 400), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point->intensity = 2;
@@ -145,7 +142,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	Scene::scene->entities.push_back(plane);
 	//Scene::scene->entities.push_back(car);
 	Scene::scene->entities.push_back(house);
-	//Scene::scene->entities.push_back(spot);
+	Scene::scene->entities.push_back(spot);
 	//Scene::scene->entities.push_back(spot2);
 	//Scene::scene->entities.push_back(spot3);
 	//Scene::scene->entities.push_back(spot4);
@@ -157,7 +154,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//Scene::scene->entities.push_back(point3);
 	//Scene::scene->entities.push_back(point4);
 	//Scene::scene->entities.push_back(point5);
-	//Scene::scene->entities.push_back(point6);
+	Scene::scene->entities.push_back(point6);
 	//Scene::scene->entities.push_back(point7);
 	//Scene::scene->entities.push_back(point8);
 	//Scene::scene->entities.push_back(point9);

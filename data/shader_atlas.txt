@@ -9,6 +9,7 @@ deferred_ws basic.vs deferred.fs
 ssao quad.vs ssao.fs
 blur quad.vs blur.fs
 probe basic.vs probe.fs
+skybox basic.vs skybox.fs
 
 \basic.vs
 
@@ -104,7 +105,6 @@ in vec4 v_color;
 
 uniform vec4 u_color;//material->color
 uniform sampler2D u_texture;//texture
-uniform sampler2D u_emissive;
 uniform vec3 u_emissive_factor;
 
 uniform float u_time;
@@ -219,7 +219,7 @@ void main()
 	
 	//apply to final pixel color
 	//emissive texture
-	light += texture2D( u_emissive, uv).xyz * u_emissive_factor;
+	light += u_emissive_factor;
 	color.xyz *= light*u_light_intensity; 
 
 	FragColor = color;
@@ -294,7 +294,6 @@ uniform sampler2D u_color_texture;
 uniform sampler2D u_normal_texture;
 uniform sampler2D u_extra_texture;
 uniform sampler2D u_depth_texture;
-uniform sampler2D u_emissive;
 uniform vec3 u_emissive_factor;
 
 uniform mat4 u_inverse_viewprojection;
@@ -549,7 +548,7 @@ vec3 difspec(float metalness, float roughness, vec3 N, vec2 uv, vec3 worldpos,ve
 
 	//modulate direct light by light received
 	light += direct * lightParams;
-	light += texture2D( u_emissive, uv).xyz * u_emissive_factor;
+	light += u_emissive_factor;
 
 	return light;
 
@@ -813,4 +812,25 @@ void main()
 		irradiance += u_coeffs[i] * shCosine.c[i];
 
 	FragColor = vec4(irradiance, 1.0);
+}
+
+\skybox.fs
+
+#version 330 core
+in vec3 v_world_position;
+in vec3 v_normal;
+
+uniform samplerCube u_texture;
+uniform vec3 u_camera_position;
+
+out vec4 FragColor;
+
+void main()
+{
+	vec3 N = normalize( v_normal );
+	vec3 V = normalize( u_camera_position - v_world_position );
+	vec3 R = reflect( V, N );
+
+	//FragColor = texture( u_texture, R );
+	FragColor = textureLod( u_texture, R, 0.0 );
 }

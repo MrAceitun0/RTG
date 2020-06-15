@@ -3,6 +3,7 @@
 #include "scene.h"
 #include "fbo.h"
 #include "sphericalharmonics.h"
+#include "extra/hdre.h"
 
 //forward declarations
 class Camera;
@@ -19,6 +20,11 @@ namespace GTR {
 		int index; //its index in the array 
 		SphericalHarmonics sh; //coeffs
 	};
+	struct sReflectionProbe {
+		Vector3 pos;
+		Texture* cubemap = NULL;
+	};
+
 	
 	// This class is in charge of rendering anything in our system.
 	// Separating the render from anything else makes the code cleaner
@@ -32,8 +38,12 @@ namespace GTR {
 		Texture* probes_texture;
 		FBO* illumination_fbo;
 		FBO* irr_fbo;
+		FBO* reflections_fbo;
+		Texture * environment;
+		
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
+		std::vector<sReflectionProbe*> reflection_probes;
 		bool first = true;
 
 		bool ssao_blurring = false;
@@ -53,6 +63,7 @@ namespace GTR {
 		void renderPrefab(const Matrix44 & model, GTR::Prefab * prefab, Camera * camera, bool deferred);
 
 		void renderNodeForward(const Matrix44 & prefab_model, GTR::Node * node, Camera * camera);
+
 		void renderNodeDeferred(const Matrix44 & prefab_model, GTR::Node * node, Camera * camera);
 
 		void renderMeshWithLight(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera);//forward
@@ -60,6 +71,9 @@ namespace GTR {
 		void renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera);
 
 		void renderShadowmap();
+		void renderSkyBox(Camera* camera);
 	};
+
+	Texture * CubemapFromHDRE(const char * filename);
 
 };
