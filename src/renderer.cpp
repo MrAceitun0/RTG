@@ -23,7 +23,8 @@ Renderer::Renderer()
 	illumination_fbo = NULL;
 	irr_fbo = NULL;
 	reflections_fbo = NULL;
-	environment = CubemapFromHDRE("data/panorama.hdre");;
+	environment = CubemapFromHDRE("data/panorama.hdre");
+	final_fbo = NULL;
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -453,6 +454,16 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//be sure blending is not active
 	glDisable(GL_BLEND);
+	/*
+	if (!final_fbo)
+	{
+		final_fbo = new FBO();
+		final_fbo->create(w, h, 1, GL_RGB, GL_FLOAT);
+	}
+	*/
+	//final_fbo->bind();
+	illumination_fbo->color_textures[0]->toViewport();
+	//final_fbo->unbind();
 
 	//and render the texture into the screen
 	if (Scene::scene->gBuffers)
@@ -482,7 +493,20 @@ void Renderer::renderDeferred(Camera* camera)
 	}
 	else
 	{
-		illumination_fbo->color_textures[0]->toViewport();
+		if (use_fx)
+		{
+			Shader* sh_tonemapper = Shader::Get("tonemapper");
+			sh_tonemapper->enable();
+			sh_tonemapper->setUniform("u_scale", tonemapper_scale);
+			sh_tonemapper->setUniform("u_average_lum", tonemapper_average_lum);
+			sh_tonemapper->setUniform("u_lumwhite2", tonemapper_lumwhite2 * tonemapper_lumwhite2);
+			sh_tonemapper->setUniform("u_igamma", 1.0f / tonemapper_igamma);
+			illumination_fbo->color_textures[0]->toViewport(sh_tonemapper);
+		}
+		else
+		{
+			illumination_fbo->color_textures[0]->toViewport();
+		}
 		if (Scene::scene->probes)
 		{
 			for (int i = 0; i < probes.size(); i++)

@@ -351,6 +351,12 @@ void Application::renderDebugGUI(void)
 	ImGui::Checkbox("Probes", &Scene::scene->probes);
 	ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
 
+	ImGui::Checkbox("Tonemapper", &renderer->use_fx);
+	ImGui::DragFloat("Tonemapper scale", &renderer->tonemapper_scale, 0.0f, 3.0f);
+	ImGui::DragFloat("Tonemapper average lum", &renderer->tonemapper_average_lum, 0.0f, 3.0f);
+	ImGui::DragFloat("Tonemapper lumwhite2", &renderer->tonemapper_lumwhite2, 0.0f, 3.0f);
+	ImGui::DragFloat("Tonemapper igamma", &renderer->tonemapper_igamma, 0.0f, 3.0f);
+
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {
 		camera->renderInMenu();

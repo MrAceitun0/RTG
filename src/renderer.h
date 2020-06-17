@@ -40,11 +40,18 @@ namespace GTR {
 		FBO* irr_fbo;
 		FBO* reflections_fbo;
 		Texture * environment;
+		FBO* final_fbo;
 		
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
 		std::vector<sReflectionProbe*> reflection_probes;
 		bool first = true;
+		
+		bool use_fx = true;
+		float tonemapper_scale = 1.0f;
+		float tonemapper_average_lum = 1.0f;
+		float tonemapper_lumwhite2 = 1.0f;
+		float tonemapper_igamma = 2.2f;
 
 		bool ssao_blurring = false;
 
