@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "application.h"
 #include "sphericalharmonics.h"
+#include "extra/hdre.h"
 
 using namespace GTR;
 
@@ -24,7 +25,7 @@ Renderer::Renderer()
 	irr_fbo = NULL;
 	reflections_fbo = NULL;
 	environment = CubemapFromHDRE("data/panorama.hdre");
-	final_fbo = NULL;
+	//final_fbo = NULL;
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -925,6 +926,7 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 	shader->disable();
 
 }
+
 Texture* GTR::CubemapFromHDRE(const char* filename)
 {
 	HDRE* hdre = new HDRE();

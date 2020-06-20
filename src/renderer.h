@@ -40,7 +40,7 @@ namespace GTR {
 		FBO* irr_fbo;
 		FBO* reflections_fbo;
 		Texture * environment;
-		FBO* final_fbo;
+		//FBO* final_fbo;
 		
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
@@ -81,6 +81,6 @@ namespace GTR {
 		void renderSkyBox(Camera* camera);
 	};
 
-	Texture * CubemapFromHDRE(const char * filename);
+	Texture* CubemapFromHDRE(const char* filename);
 
 };

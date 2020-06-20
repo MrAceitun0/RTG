@@ -155,7 +155,7 @@ bool HDRE::clean()
 {
 	try
 	{
-		if(data)
+		if (data)
 			delete data;
 
 		for (int i = 0; i < N_LEVELS; i++)

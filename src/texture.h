@@ -37,13 +37,13 @@ class Image : public tImage<uint8>
 {
 public:
 	Color getPixel(int x, int y) {
-		assert(x >= 0 && x < (int)width && y >= 0 && y < (int)height && "reading of memory");
-		int pos = y*width* num_channels + x* num_channels;
+		assert(x >= 0 && x < (int)width&& y >= 0 && y < (int)height && "reading of memory");
+		int pos = y * width * num_channels + x * num_channels;
 		return Color(data[pos], data[pos + 1], data[pos + 2], num_channels == 4 ? 255 : data[pos + 3]);
 	};
 	void setPixel(int x, int y, Color v) {
-		assert(x >= 0 && x < (int)width && y >= 0 && y < (int)height && "writing of memory");
-		int pos = y*width*num_channels + x* num_channels;
+		assert(x >= 0 && x < (int)width&& y >= 0 && y < (int)height && "writing of memory");
+		int pos = y * width * num_channels + x * num_channels;
 		data[pos] = v.x; data[pos + 1] = v.y; data[pos + 2] = v.z; if (num_channels == 4) data[pos + 3] = v.w;
 	};
 
@@ -72,7 +72,7 @@ public:
 		assert(x >= 0 && x < (int)width&& y >= 0 && y < (int)height && "writing of memory");
 		int pos = y * width * num_channels + x * num_channels;
 		data[pos] = v.x; data[pos + 1] = v.y; data[pos + 2] = v.z;
-		if(num_channels == 4)
+		if (num_channels == 4)
 			data[pos + 3] = v.w;
 	};
 	void fromTexture(Texture* texture);
@@ -137,7 +137,7 @@ public:
 
 	static void UnbindAll();
 
-	void operator = (const Texture& tex) { assert("textures cannot be cloned like this!");  }
+	void operator = (const Texture& tex) { assert("textures cannot be cloned like this!"); }
 
 	//load without using the manager
 	bool load(const char* filename, bool mipmaps = true, bool wrap = true, unsigned int type = GL_UNSIGNED_BYTE);
@@ -149,7 +149,7 @@ public:
 	void generateMipmaps();
 
 	//show the texture on the current viewport
-	void toViewport( Shader* shader = NULL );
+	void toViewport(Shader* shader = NULL);
 	//copy to another texture
 	void copyTo(Texture* destination, Shader* shader = NULL);
 

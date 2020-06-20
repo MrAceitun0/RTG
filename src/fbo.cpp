@@ -51,7 +51,7 @@ void FBO::freeTextures()
 	owns_textures = false;
 }
 
-bool FBO::create( int width, int height, int num_textures, int format, int type, bool use_depth_texture)
+bool FBO::create(int width, int height, int num_textures, int format, int type, bool use_depth_texture)
 {
 	assert(glGetError() == GL_NO_ERROR);
 	assert(width && height);
@@ -60,12 +60,10 @@ bool FBO::create( int width, int height, int num_textures, int format, int type,
 
 	num_color_textures = num_textures;
 
-	int internalFormat = 0; //GL_RGB
-
 	std::vector<Texture*> textures(4);
 	for (int i = 0; i < num_textures; ++i)
 	{
-		Texture* colortex = textures[i] = new Texture(width, height, format, type, false, NULL, internalFormat );
+		Texture* colortex = textures[i] = new Texture(width, height, format, type, false); //,NULL, format == GL_RGBA ? GL_RGBA8 : GL_RGB8 
 		glBindTexture(colortex->texture_type, colortex->texture_id);	//we activate this id to tell opengl we are going to use this texture
 		glTexParameteri(colortex->texture_type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);	//set the min filter
 		glTexParameteri(colortex->texture_type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);   //set the mag filter
@@ -76,16 +74,16 @@ bool FBO::create( int width, int height, int num_textures, int format, int type,
 	//is using a depth_texture slower than using a renderbuffer?
 	//https://stackoverflow.com/questions/45320836/why-is-depth-buffers-faster-than-depth-textures
 	Texture* depth_texture = NULL;
-	if(use_depth_texture)
+	if (use_depth_texture)
 		depth_texture = new Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, false);
 	owns_textures = true;
 	return setTextures(textures, depth_texture);
 }
 
-bool FBO::setTexture(Texture* texture, int cubemap_face )
+bool FBO::setTexture(Texture* texture, int cubemap_face)
 {
 	std::vector<Texture*> textures;
-	if(texture->format == GL_DEPTH_COMPONENT)
+	if (texture->format == GL_DEPTH_COMPONENT)
 		setTextures(textures, texture, cubemap_face);
 	else
 	{
@@ -99,7 +97,7 @@ bool FBO::setTextures(std::vector<Texture*> textures, Texture* depth_texture, in
 {
 	assert(textures.size() >= 0 && textures.size() <= 4);
 	assert(glGetError() == GL_NO_ERROR);
-	assert(textures.size() || depth_texture ); //at least one texture
+	assert(textures.size() || depth_texture); //at least one texture
 	int format = 0; //RGB,RGBA
 	int type = 0;//UNSIGNED_BYTE
 	if (textures.size())
@@ -116,7 +114,7 @@ bool FBO::setTextures(std::vector<Texture*> textures, Texture* depth_texture, in
 	}
 
 	//create and bind FBO
-	if(fbo_id == 0)
+	if (fbo_id == 0)
 		glGenFramebuffersEXT(1, &fbo_id);
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo_id);
 	checkGLErrors();
@@ -146,19 +144,21 @@ bool FBO::setTextures(std::vector<Texture*> textures, Texture* depth_texture, in
 		assert(!texture || (texture->width == width && texture->height == height)); //incorrect size, textures must have same size
 		assert(!texture || (texture->type == type && texture->format == format)); //incorrect texture format
 
-		if (texture && texture->texture_type == GL_TEXTURE_CUBE_MAP)
+		if (texture)
 		{
-			assert(cubemap_face != -1); //MUST SPECIFY CUBEMAP FACE
-			glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + i, GL_TEXTURE_CUBE_MAP_POSITIVE_X + cubemap_face, texture ? texture->texture_id : NULL, 0);
+			if (texture->texture_type == GL_TEXTURE_CUBE_MAP)
+			{
+				assert(cubemap_face != -1); //MUST SPECIFY CUBEMAP FACE
+				glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + i, GL_TEXTURE_CUBE_MAP_POSITIVE_X + cubemap_face, texture ? texture->texture_id : NULL, 0);
+			}
+			else
+			{
+				glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + i, GL_TEXTURE_2D, texture ? texture->texture_id : NULL, 0);
+			}
+			bufs[i] = GL_COLOR_ATTACHMENT0_EXT + i;
 		}
 		else
-        {
-            glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + i, GL_TEXTURE_2D, texture ? texture->texture_id : NULL, 0);
-        }
-        if(texture)
-            bufs[i] = GL_COLOR_ATTACHMENT0_EXT + i;
-        else
-            bufs[i] = GL_NONE;
+			bufs[i] = GL_NONE;
 		color_textures[i] = texture;
 		if (texture)
 			num_color_textures++;
@@ -167,15 +167,15 @@ bool FBO::setTextures(std::vector<Texture*> textures, Texture* depth_texture, in
 	//add a render buffer for the color
 	if (num_color_textures == 0)
 	{
-		if(!renderbuffer_color)
+		if (!renderbuffer_color)
 			glGenRenderbuffersEXT(1, &renderbuffer_color);
 		glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, renderbuffer_color);
 		glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_RGB, width, height);
 		glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER_EXT, renderbuffer_color);
 		bufs[0] = GL_COLOR_ATTACHMENT0_EXT;
 	}
-    
-    glDrawBuffers(4, bufs);
+
+	glDrawBuffers(4, bufs);
 
 	checkGLErrors();
 
@@ -248,7 +248,7 @@ void FBO::unbind()
 void FBO::enableSingleBuffer(int num)
 {
 	assert(num < this->num_color_textures);
-    GLenum DrawBuffers[1] = {static_cast<GLenum>( (int)GL_COLOR_ATTACHMENT0) + num };
+	GLenum DrawBuffers[1] = { static_cast<GLenum>((int)GL_COLOR_ATTACHMENT0) + num };
 	glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
 }
 

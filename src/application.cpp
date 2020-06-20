@@ -12,7 +12,6 @@
 #include "renderer.h"
 #include "Scene.h"
 
-
 #include <cmath>
 #include <string>
 #include <cstdio>
