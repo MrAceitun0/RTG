@@ -28,6 +28,8 @@ Renderer::Renderer()
 	probes_texture = NULL;
 	//final_fbo = NULL;
 	volumetric_fbo = NULL;
+	
+	
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -232,12 +234,10 @@ void Renderer::renderDeferred(Camera* camera)
 	gbuffers_fbo->enableAllBuffers();
 
 	renderSkyBox(camera);
-
 	//render everything 
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 	for(int i=0;i<prefab_vector.size();i++)
 		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, true);
-
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
 
@@ -262,6 +262,7 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//start rendering inside the ssao texture
 	ssao_fbo->bind();
+
 
 	glDisable(GL_DEPTH_TEST);
 
@@ -332,6 +333,7 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//start rendering to the illumination fbo
 	illumination_fbo->bind();
+
 
 	//clear GB0 with the color (and depth)
 	glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -464,8 +466,16 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//be sure blending is not active
 	glDisable(GL_BLEND);
-
+	/*
+	if (!final_fbo)
+	{
+		final_fbo = new FBO();
+		final_fbo->create(w, h, 1, GL_RGB, GL_FLOAT);
+	}
+	*/
+	//final_fbo->bind();
 	illumination_fbo->color_textures[0]->toViewport();
+	//final_fbo->unbind();
 
 	//and render the texture into the screen
 	if (Scene::scene->gBuffers)
@@ -475,7 +485,8 @@ void Renderer::renderDeferred(Camera* camera)
 		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
 
 		glViewport(0, 0, w*0.5, h*0.5);
-		gbuffers_fbo->color_textures[0]->toViewport();
+		reflections_fbo->color_textures[0]->toViewport();
+		//gbuffers_fbo->color_textures[0]->toViewport();
 
 		glViewport(w*0.5, 0, w*0.5, h*0.5);
 		gbuffers_fbo->color_textures[1]->toViewport();
@@ -488,7 +499,7 @@ void Renderer::renderDeferred(Camera* camera)
 
 		glViewport(0, 0, w, h);
 	}
-	else if (Scene::scene->showIrrText)
+	else if (Scene::scene->showIrrText&&probes_texture)
 	{
 		glViewport(0, 0, w, h);
 		probes_texture->toViewport();
@@ -515,6 +526,13 @@ void Renderer::renderDeferred(Camera* camera)
 			for (int i = 0; i < probes.size(); i++)
 			{
 				renderProbe(probes[i].pos, 5, (float*)&probes[i].sh);
+			}
+		}
+		if (Scene::scene->reflection_probes)
+		{
+			for (int i = 0; i < reflection_probes.size(); i++)
+			{
+				renderReflectionProbe(reflection_probes[i]->pos, 5, reflection_probes[i]->cubemap);
 			}
 		}
 
@@ -574,6 +592,8 @@ void GTR::Renderer::renderScene(Camera * camera, bool deferred)
 {
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 
+	if(!deferred)
+		renderSkyBox(camera);
 	for (int i = 0; i < prefab_vector.size();i++) {
 		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, deferred);
 	}
@@ -585,8 +605,10 @@ void Renderer::renderPrefab(const Matrix44& model, GTR::Prefab* prefab, Camera* 
 	//assign the model to the root node
 	if(deferred)
 		renderNodeDeferred(model, &prefab->root, camera);
-	else
+	else 
 		renderNodeForward(model, &prefab->root, camera);
+
+	
 }
 
 //renders a node of the prefab and its children
@@ -917,11 +939,40 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 
 void GTR::Renderer::renderSkyBox(Camera* camera)
 {
+
 	if (!environment)
-	{
-		return;
-	}
-	/*
+		environment = CubemapFromHDRE("data/textures/panorama.hdre");
+
+	Shader* shader = Shader::Get("skybox");
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	Matrix44 model;
+	model.setTranslation(camera->eye.x, camera->eye.y, camera->eye.z);
+	model.scale(10, 10, 10);
+	shader->enable();
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_camera_position", camera->eye);
+	shader->setUniform("u_model", model);
+	shader->setUniform("u_texture", environment, 0);
+	Mesh::Get("data/meshes/box.ASE")->render(GL_TRIANGLES);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+	shader->disable();
+
+
+}
+
+void GTR::Renderer::computeReflection()
+{
+	if (!environment)
+		environment = CubemapFromHDRE("data/textures/panorama.hdre");
+
+	if (!reflections_fbo)
+		reflections_fbo = new FBO();
+
+	Camera cam;
+	cam.setPerspective(90, 1, 0.1, 1000);
 	//create the probe
 	sReflectionProbe* probe = new sReflectionProbe;
 
@@ -936,48 +987,65 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 	//add it to the list
 	reflection_probes.push_back(probe);
 
-	Camera cam;
-	cam.setPerspective(90, 1, 0.1, 1000);
+	for (int iP = 0;iP < reflection_probes.size();iP++) {
 
-	//render the view from every side
-	for (int i = 0; i < 6; ++i)
-	{
-		//assign cubemap face to FBO
-		reflections_fbo->setTexture(probe->cubemap, i);
+		//sReflectionProbe *p = reflection_probes[iP];
 
-		//bind FBO
-		reflections_fbo->bind();
+		//render the view from every side
+		for (int i = 0; i < 6; ++i)
+		{
+			//assign cubemap face to FBO
+			reflections_fbo->setTexture(reflection_probes[iP]->cubemap, i);
 
-		//render view
-		Vector3 eye = probe->pos;
-		Vector3 center = probe->pos + cubemapFaceNormals[i][2];
-		Vector3 up = cubemapFaceNormals[i][1];
-		cam.lookAt(eye, center, up);
-		cam.enable();
-		renderScene(&cam, false);//renderforward
-		reflections_fbo->unbind();
+			//bind FBO
+			reflections_fbo->bind();
+
+			//render view
+			Vector3 eye = reflection_probes[iP]->pos;
+			Vector3 center = reflection_probes[iP]->pos + cubemapFaceNormals[i][2];
+			Vector3 up = cubemapFaceNormals[i][1];
+			cam.lookAt(eye, center, up);
+			cam.enable();
+			glEnable(GL_DEPTH_TEST);
+			glEnable(GL_CULL_FACE);
+
+			renderScene(&cam, false);
+
+			reflections_fbo->unbind();
+		}
+
+		//generate the mipmaps
+		reflection_probes[iP]->cubemap->generateMipmaps();
 	}
 
-	//generate the mipmaps
-	probe->cubemap->generateMipmaps();
-	*/
-	Shader* shader = Shader::Get("skybox");
-	glDisable(GL_CULL_FACE);
+	
+}
+
+void GTR::Renderer::renderReflectionProbe(Vector3 pos, float size, Texture *cubemap)
+{
+
+	Camera* camera = Camera::current;
+	Shader* shader = Shader::Get("ref_probes");
+	Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
+
+	glEnable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
+
 	Matrix44 model;
-	model.setTranslation(camera->eye.x, camera->eye.y, camera->eye.z);
-	model.scale(10, 10, 10);
-	//model.setTranslation(0,5,0);
-	//model.scale(5, 5, 5);
+	model.setTranslation(pos.x, pos.y, pos.z);
+	model.scale(size, size, size);
+
 	shader->enable();
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
 	shader->setUniform("u_model", model);
-	shader->setUniform("u_texture", environment, 0);
-	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
+	shader->setUniform("u_texture", cubemap, 0);
+	mesh->render(GL_TRIANGLES);
+
+	shader->disable();
+
+
 }
 
 Texture* Renderer::CubemapFromHDRE(const char* filename)

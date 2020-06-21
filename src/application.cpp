@@ -171,7 +171,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//This class will be the one in charge of rendering all 
 	renderer = new GTR::Renderer(); //here so we have opengl ready in constructor
 	renderer->random_points = renderer->generateSpherePoints(64, 1.0f, true);
-	renderer->environment = renderer->CubemapFromHDRE("data/textures/panorama.hdre");
+	//renderer->environment = renderer->CubemapFromHDRE("data/panorama.hdre");
 
 	//hide the cursor
 	SDL_ShowCursor(!mouse_locked); //hide or show the mouse
@@ -206,7 +206,10 @@ void Application::render(void)
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+	//renderer->renderSkyBox(camera);
+
 	renderer->renderDeferred(camera);
+	//renderer->renderScene(camera,false);
 
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
@@ -349,7 +352,10 @@ void Application::renderDebugGUI(void)
 	ImGui::DragFloat("SSAO Bias", &Scene::scene->ssao_bias, 0.001f, 0.0f, 0.2f);
 	if(ImGui::Button("Compute Irradiance"))
 		renderer->computeIrradiance();
+	if (ImGui::Button("Compute Reflection"))
+		renderer->computeReflection();
 	ImGui::Checkbox("Probes", &Scene::scene->probes);
+	ImGui::Checkbox("Reflection Probes", &Scene::scene->reflection_probes);
 	ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
 
 	ImGui::Checkbox("Tonemapper", &renderer->use_fx);

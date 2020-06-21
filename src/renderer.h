@@ -63,10 +63,6 @@ namespace GTR {
 
 		std::vector<Vector3> generateSpherePoints(int num, float radius, bool hemi);
 
-		void renderProbe(Vector3 pos, float size, float* coeffs);
-
-		void computeIrradiance();
-
 		void renderDeferred(Camera * camera);
 
 		void renderScene(Camera * camera, bool deferred);
@@ -82,7 +78,14 @@ namespace GTR {
 		void renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera);
 
 		void renderShadowmap();
+
 		void renderSkyBox(Camera* camera);
+
+		void computeReflection();
+		void computeIrradiance();
+
+		void renderReflectionProbe(Vector3 pos, float size, Texture *cubemap);
+		void renderProbe(Vector3 pos, float size, float* coeffs);
 
 		Texture* CubemapFromHDRE(const char* filename);
 	};
