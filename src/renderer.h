@@ -41,12 +41,16 @@ namespace GTR {
 		FBO* reflections_fbo;
 		Texture * environment;
 		//FBO* final_fbo;
+		FBO* volumetric_fbo;
 		
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
 		std::vector<sReflectionProbe*> reflection_probes;
 		bool first = true;
 		
+		bool volumetric = false;
+		float sampledensity = 0.02f;
+
 		bool use_fx = true;
 		float tonemapper_scale = 1.0f;
 		float tonemapper_average_lum = 1.0f;
@@ -79,8 +83,9 @@ namespace GTR {
 
 		void renderShadowmap();
 		void renderSkyBox(Camera* camera);
+
+		Texture* CubemapFromHDRE(const char* filename);
 	};
 
-	Texture* CubemapFromHDRE(const char* filename);
 
 };

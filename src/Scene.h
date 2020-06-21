@@ -18,6 +18,7 @@ public:
 	bool probes = false;
 	bool showIrrText = false;
 	Vector4 bg_color;
+	Light* sun;
 
 	Scene() { scene = this; };
 

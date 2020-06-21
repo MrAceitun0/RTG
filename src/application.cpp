@@ -147,6 +147,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//Scene::scene->entities.push_back(spot4);
 	//Scene::scene->entities.push_back(spot5);
 	//Scene::scene->entities.push_back(spot6);
+	Scene::scene->sun = directional;
 	Scene::scene->entities.push_back(directional);
 	//Scene::scene->entities.push_back(point);
 	//Scene::scene->entities.push_back(point2);
@@ -170,6 +171,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//This class will be the one in charge of rendering all 
 	renderer = new GTR::Renderer(); //here so we have opengl ready in constructor
 	renderer->random_points = renderer->generateSpherePoints(64, 1.0f, true);
+	//renderer->environment = renderer->CubemapFromHDRE("data/panorama.hdre");
 
 	//hide the cursor
 	SDL_ShowCursor(!mouse_locked); //hide or show the mouse
@@ -355,6 +357,9 @@ void Application::renderDebugGUI(void)
 	ImGui::DragFloat("Tonemapper average lum", &renderer->tonemapper_average_lum, 0.001f, 0.0f, 3.0f);
 	ImGui::DragFloat("Tonemapper lumwhite2", &renderer->tonemapper_lumwhite2, 0.001f, 0.0f, 3.0f);
 	ImGui::DragFloat("Tonemapper igamma", &renderer->tonemapper_igamma, 0.001f, 0.0f, 3.0f);
+
+	ImGui::Checkbox("Volumetric Lighting", &renderer->volumetric);
+	ImGui::DragFloat("Sample Density", &renderer->sampledensity, 0.001f, 0.0f, 0.05f);
 
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {

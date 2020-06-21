@@ -24,8 +24,10 @@ Renderer::Renderer()
 	illumination_fbo = NULL;
 	irr_fbo = NULL;
 	reflections_fbo = NULL;
-	environment = CubemapFromHDRE("data/panorama.hdre");
+	environment = NULL;
+	probes_texture = NULL;
 	//final_fbo = NULL;
+	volumetric_fbo = NULL;
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -248,6 +250,12 @@ void Renderer::renderDeferred(Camera* camera)
 	{
 		ssao_blur = new Texture();
 		ssao_blur->create(w, h);
+	}
+
+	if (!volumetric_fbo)
+	{
+		volumetric_fbo = new FBO();
+		volumetric_fbo->create(w >> 2, h >> 2, 1, GL_RGBA);
 	}
 
 	//start rendering inside the ssao texture
@@ -508,12 +516,63 @@ void Renderer::renderDeferred(Camera* camera)
 		{
 			illumination_fbo->color_textures[0]->toViewport();
 		}
+
 		if (Scene::scene->probes)
 		{
 			for (int i = 0; i < probes.size(); i++)
 			{
 				renderProbe(probes[i].pos, 5, (float*)&probes[i].sh);
 			}
+		}
+
+		if (Scene::scene->sun && Scene::scene->sun->has_shadow && volumetric)
+		{
+			glDisable(GL_BLEND);
+
+			Texture* noise = Texture::Get("data/textures/noise.png");
+			noise->bind();
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+			volumetric_fbo->bind();
+
+			Light* sun = Scene::scene->sun;
+			//Volumetric
+			Shader* shader = Shader::Get("volumetric_directional");
+
+			shader->enable();
+
+			shader->setUniform("u_inverse_viewprojection", inv_vp);
+			shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+			shader->setUniform("u_depth_texture", gbuffers_fbo->depth_texture, 0);
+			shader->setUniform("u_iRes", Vector2(1.0 / volumetric_fbo->width, 1.0 / volumetric_fbo->height));
+			shader->setUniform("u_camera_position", camera->eye);
+
+			shader->setUniform("u_ambient_light", Scene::scene->ambient);
+
+			shader->setUniform("u_light_color", sun->color);
+			shader->setUniform("u_light_vector", sun->getLocalVector(Vector3(0, 0, -1)));
+
+			shader->setTexture("shadowmap", sun->shadow_fbo->depth_texture, 1);
+			shader->setUniform("u_shadow_viewproj", sun->light_camera->viewprojection_matrix);
+			shader->setUniform("u_shadow_bias", sun->shadow_bias);
+
+			shader->setUniform("u_sample_density", sampledensity);
+			shader->setUniform("u_rand", Vector3(random(), random(), random()));
+			shader->setUniform("u_noise", noise, 3);
+
+			Mesh* quad = Mesh::getQuad();
+			quad->render(GL_TRIANGLES);
+			volumetric_fbo->unbind();
+
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			volumetric_fbo->color_textures[0]->bind();
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			volumetric_fbo->color_textures[0]->unbind();
+			volumetric_fbo->color_textures[0]->toViewport();
+			glDisable(GL_BLEND);
+
 		}
 	}
 }
@@ -927,7 +986,7 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 
 }
 
-Texture* GTR::CubemapFromHDRE(const char* filename)
+Texture* Renderer::CubemapFromHDRE(const char* filename)
 {
 	HDRE* hdre = new HDRE();
 	if (!hdre->load(filename))

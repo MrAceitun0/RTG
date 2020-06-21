@@ -11,6 +11,7 @@ blur quad.vs blur.fs
 probe basic.vs probe.fs
 skybox basic.vs skybox.fs
 tonemapper quad.vs tonemapper.fs
+volumetric_directional quad.vs volumetricdir.fs
 
 \basic.vs
 
@@ -832,7 +833,6 @@ void main()
 	vec3 V = normalize( u_camera_position - v_world_position );
 	vec3 R = reflect( V, N );
 
-	//FragColor = texture( u_texture, R );
 	FragColor = textureLod( u_texture, R, 0.0 );
 }
 
@@ -882,4 +882,92 @@ void main()
 	vec4 color = texture2D(u_texture, v_uv);
 	color.xyz = applyTonemapper (color.xyz);
 	FragColor = color;
+}
+
+\volumetricdir.fs
+
+#version 330 core
+
+uniform sampler2D u_depth_texture;
+uniform float u_time;
+uniform vec3 u_ambient_light;
+uniform vec3 u_camera_position;
+uniform vec2 u_iRes;
+uniform mat4 u_inverse_viewprojection;
+
+uniform vec3 u_light_color;
+
+uniform sampler2D shadowmap;
+uniform mat4 u_shadow_viewproj;
+uniform float u_shadow_bias;
+
+uniform sampler2D u_noise;
+uniform vec3 u_rand;
+
+uniform float u_sample_density;
+
+in vec2 v_uv;
+out vec4 FragColor;
+
+float getShadow(vec3 worldpos)
+{
+	vec4 proj_pos = u_shadow_viewproj * vec4(worldpos,1.0);	//project our 3D position to the shadowmap
+
+	vec2 shadow_uv = proj_pos.xy / proj_pos.w;	//from homogeneus space to clip space
+
+	shadow_uv = shadow_uv * 0.5 + vec2(0.5);	//from clip space to uv space
+
+	float real_depth = (proj_pos.z - u_shadow_bias) / proj_pos.w;	//get point depth (from -1 to 1)
+	
+	real_depth = real_depth * 0.5 + 0.5;	//normalize from [-1..+1] to [0..+1]
+
+	float shadow_depth = texture( shadowmap, shadow_uv).x;	//read depth from depth buffer in [0..+1]
+
+	//compute final shadow factor by comparing
+	float shadow_factor = 1.0;
+	
+	if( shadow_depth < real_depth )
+		shadow_factor = 0.1;
+	
+	if(	shadow_uv.x < 0.0 || shadow_uv.x > 1.0 ||shadow_uv.y < 0.0 || shadow_uv.y > 1.0)
+		shadow_factor=1.0;
+
+	//it is before near or behind far plane
+	if(real_depth < 0.0 || real_depth > 1.0)
+		shadow_factor= 1.0;
+	
+	return shadow_factor;
+}
+
+void main()
+{
+	const float SAMPLES = 64.0;
+
+	vec2 uv = gl_FragCoord.xy * u_iRes;
+	float depth = texture(u_depth_texture, uv).x;
+
+	vec4 screen_position = vec4(uv*2.0 - vec2(1.0), depth*2.0 - 1.0,1.0);
+	vec4 proj_worldpos = u_inverse_viewprojection * screen_position;
+	vec3 worldpos = proj_worldpos.xyz / proj_worldpos.w;
+
+	vec3 raydir = worldpos - u_camera_position;
+	float noise = texture(u_noise, uv * 2.0 + u_rand.xy).x;
+	raydir /= SAMPLES;
+
+	vec3 current_pos = u_camera_position + raydir * noise;
+
+	vec3 color = vec3(0.0);
+	float total_density = 0.0;
+
+	for(int i = 0; i < SAMPLES; i++)
+	{
+		float shadow_factor = getShadow(current_pos);
+		color += u_sample_density * shadow_factor * u_light_color;
+		total_density += u_sample_density * shadow_factor;
+		if(total_density >= 1.0)
+			break;
+		current_pos += raydir;
+	}
+
+	FragColor = vec4(color, total_density);
 }
