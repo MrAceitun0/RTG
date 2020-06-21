@@ -231,6 +231,8 @@ void Renderer::renderDeferred(Camera* camera)
 	//enable all buffers back
 	gbuffers_fbo->enableAllBuffers();
 
+	renderSkyBox(camera);
+
 	//render everything 
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 	for(int i=0;i<prefab_vector.size();i++)
@@ -330,7 +332,6 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//start rendering to the illumination fbo
 	illumination_fbo->bind();
-
 
 	//clear GB0 with the color (and depth)
 	glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -463,16 +464,8 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//be sure blending is not active
 	glDisable(GL_BLEND);
-	/*
-	if (!final_fbo)
-	{
-		final_fbo = new FBO();
-		final_fbo->create(w, h, 1, GL_RGB, GL_FLOAT);
-	}
-	*/
-	//final_fbo->bind();
+
 	illumination_fbo->color_textures[0]->toViewport();
-	//final_fbo->unbind();
 
 	//and render the texture into the screen
 	if (Scene::scene->gBuffers)
@@ -924,8 +917,11 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 
 void GTR::Renderer::renderSkyBox(Camera* camera)
 {
-	if (!environment) 
+	if (!environment)
+	{
 		return;
+	}
+	/*
 	//create the probe
 	sReflectionProbe* probe = new sReflectionProbe;
 
@@ -964,9 +960,7 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 
 	//generate the mipmaps
 	probe->cubemap->generateMipmaps();
-
-
-	
+	*/
 	Shader* shader = Shader::Get("skybox");
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
@@ -974,6 +968,8 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 	Matrix44 model;
 	model.setTranslation(camera->eye.x, camera->eye.y, camera->eye.z);
 	model.scale(10, 10, 10);
+	//model.setTranslation(0,5,0);
+	//model.scale(5, 5, 5);
 	shader->enable();
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
@@ -982,8 +978,6 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 	Mesh::Get("data/meshes/sphere.obj")->render(GL_TRIANGLES);
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
-	shader->disable();
-
 }
 
 Texture* Renderer::CubemapFromHDRE(const char* filename)

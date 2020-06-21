@@ -171,7 +171,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//This class will be the one in charge of rendering all 
 	renderer = new GTR::Renderer(); //here so we have opengl ready in constructor
 	renderer->random_points = renderer->generateSpherePoints(64, 1.0f, true);
-	//renderer->environment = renderer->CubemapFromHDRE("data/panorama.hdre");
+	renderer->environment = renderer->CubemapFromHDRE("data/textures/panorama.hdre");
 
 	//hide the cursor
 	SDL_ShowCursor(!mouse_locked); //hide or show the mouse
