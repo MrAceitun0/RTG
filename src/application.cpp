@@ -184,7 +184,7 @@ void Application::render(void)
 	checkGLErrors();
 
 	//set the clear color (the background color)
-	glClearColor(1.0, 0.0, 0.0, 1.0);
+	glClearColor(Scene::scene->bg_color.x, Scene::scene->bg_color.y, Scene::scene->bg_color.z, 1.0);
 
 	if (!temp)
 		renderer->renderShadowmap();
@@ -207,9 +207,10 @@ void Application::render(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	//renderer->renderSkyBox(camera);
-
-	renderer->renderDeferred(camera);
-	//renderer->renderScene(camera,false);
+	if(Scene::scene->deferred)
+		renderer->renderDeferred(camera);
+	else
+		renderer->renderScene(camera,false);
 
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
@@ -345,6 +346,7 @@ void Application::renderDebugGUI(void)
 	ImGui::Text(getGPUStats().c_str());					   // Display some text (you can use a format strings too)
 
 	ImGui::Checkbox("Wireframe", &render_wireframe);
+	ImGui::Checkbox("Deferred", &Scene::scene->deferred);
 	ImGui::ColorEdit4("BG color", Scene::scene->bg_color.v);
 	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
 	ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
@@ -355,7 +357,7 @@ void Application::renderDebugGUI(void)
 	if (ImGui::Button("Compute Reflection"))
 		renderer->computeReflection();
 	ImGui::Checkbox("Probes", &Scene::scene->probes);
-	ImGui::Checkbox("Reflection Probes", &Scene::scene->reflection_probes);
+	ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
 	ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
 
 	ImGui::Checkbox("Tonemapper", &renderer->use_fx);

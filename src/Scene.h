@@ -16,8 +16,9 @@ public:
 	bool has_gamma = true;
 	float ssao_bias = 0.005;
 	bool probes = false;
-	bool reflection_probes = false;
+	bool ref_probes = false;
 	bool showIrrText = false;
+	bool deferred = false;
 	Vector4 bg_color;
 	Light* sun;
 

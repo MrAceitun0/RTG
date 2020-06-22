@@ -208,6 +208,11 @@ void Renderer::renderDeferred(Camera* camera)
 	//start rendering inside the gbuffers
 	gbuffers_fbo->bind();
 
+	if (Scene::scene->showIrrText&&probes_texture)
+	{
+		glViewport(0, 0, w, h);
+		probes_texture->toViewport();
+	}
 	//we clear in several passes so we can control the clear color independently for every gbuffer
 
 	//disable all but the GB0 (and the depth)
@@ -317,6 +322,7 @@ void Renderer::renderDeferred(Camera* camera)
 		blur_shader->enable();
 		blur_shader->setUniform("u_offset", Vector2(1.0 / (float)ssao_fbo->color_textures[0]->width, 1.0 / (float)ssao_fbo->color_textures[0]->height)*4.0);
 		ssao_fbo->color_textures[0]->copyTo(ssao_blur, blur_shader);
+		blur_shader->disable();
 	}
 	/***************************/
 	//ILLUMINATION
@@ -485,8 +491,9 @@ void Renderer::renderDeferred(Camera* camera)
 		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
 
 		glViewport(0, 0, w*0.5, h*0.5);
-		reflections_fbo->color_textures[0]->toViewport();
+		//reflections_fbo->color_textures[0]->toViewport();
 		//gbuffers_fbo->color_textures[0]->toViewport();
+		reflection_probes[0]->cubemap->toViewport();
 
 		glViewport(w*0.5, 0, w*0.5, h*0.5);
 		gbuffers_fbo->color_textures[1]->toViewport();
@@ -498,11 +505,6 @@ void Renderer::renderDeferred(Camera* camera)
 		gbuffers_fbo->depth_texture->toViewport(shader_depth);
 
 		glViewport(0, 0, w, h);
-	}
-	else if (Scene::scene->showIrrText&&probes_texture)
-	{
-		glViewport(0, 0, w, h);
-		probes_texture->toViewport();
 	}
 	else
 	{
@@ -528,11 +530,11 @@ void Renderer::renderDeferred(Camera* camera)
 				renderProbe(probes[i].pos, 5, (float*)&probes[i].sh);
 			}
 		}
-		if (Scene::scene->reflection_probes)
+		if (Scene::scene->ref_probes)
 		{
 			for (int i = 0; i < reflection_probes.size(); i++)
 			{
-				renderReflectionProbe(reflection_probes[i]->pos, 5, reflection_probes[i]->cubemap);
+				renderReflectionProbe(reflection_probes[i]->pos, 10, reflection_probes[i]->cubemap);
 			}
 		}
 
@@ -574,6 +576,7 @@ void Renderer::renderDeferred(Camera* camera)
 
 			Mesh* quad = Mesh::getQuad();
 			quad->render(GL_TRIANGLES);
+			shader->disable();
 			volumetric_fbo->unbind();
 
 			glEnable(GL_BLEND);
@@ -776,6 +779,23 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		glDepthFunc(GL_LESS); //as default*/
 	}
 
+	if (Scene::scene->ref_probes)
+	{
+		for (int i = 0; i < reflection_probes.size(); i++)
+		{
+			renderReflectionProbe(reflection_probes[i]->pos, 10, reflection_probes[i]->cubemap);
+		}
+	}
+	else if (Scene::scene->gBuffers)
+	{
+	
+		glViewport(0, 0, Application::instance->window_width*0.5, Application::instance->window_height*0.5);
+		//reflections_fbo->color_textures[0]->toViewport();
+		//gbuffers_fbo->color_textures[0]->toViewport();
+		reflection_probes[0]->cubemap->toViewport();
+	}
+
+
 }
 
 void GTR::Renderer::renderShadowmap()
@@ -965,14 +985,13 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 
 void GTR::Renderer::computeReflection()
 {
-	if (!environment)
-		environment = CubemapFromHDRE("data/textures/panorama.hdre");
+	/*if (!environment)
+		environment = CubemapFromHDRE("data/textures/panorama.hdre");*/
 
 	if (!reflections_fbo)
 		reflections_fbo = new FBO();
 
-	Camera cam;
-	cam.setPerspective(90, 1, 0.1, 1000);
+	
 	//create the probe
 	sReflectionProbe* probe = new sReflectionProbe;
 
@@ -990,7 +1009,8 @@ void GTR::Renderer::computeReflection()
 	for (int iP = 0;iP < reflection_probes.size();iP++) {
 
 		//sReflectionProbe *p = reflection_probes[iP];
-
+		Camera cam;
+		cam.setPerspective(90, 1, 0.1, 1000);
 		//render the view from every side
 		for (int i = 0; i < 6; ++i)
 		{
@@ -1044,7 +1064,6 @@ void GTR::Renderer::renderReflectionProbe(Vector3 pos, float size, Texture *cube
 	mesh->render(GL_TRIANGLES);
 
 	shader->disable();
-
 
 }
 
