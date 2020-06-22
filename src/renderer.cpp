@@ -28,8 +28,8 @@ Renderer::Renderer()
 	probes_texture = NULL;
 	//final_fbo = NULL;
 	volumetric_fbo = NULL;
-	
-	
+	environment1 = NULL;
+
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -63,7 +63,7 @@ void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
 	Shader* shader = Shader::Get("probe");
 	Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
 
-	glEnable(GL_CULL_FACE);
+	glDisable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 
@@ -184,7 +184,7 @@ void GTR::Renderer::computeIrradiance()
 	probes_texture->bind();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	
+	probes_texture->unbind();
 
 	//always free memory after allocating it!!!
 	delete[] sh_data;
@@ -208,11 +208,6 @@ void Renderer::renderDeferred(Camera* camera)
 	//start rendering inside the gbuffers
 	gbuffers_fbo->bind();
 
-	if (Scene::scene->showIrrText&&probes_texture)
-	{
-		glViewport(0, 0, w, h);
-		probes_texture->toViewport();
-	}
 	//we clear in several passes so we can control the clear color independently for every gbuffer
 
 	//disable all but the GB0 (and the depth)
@@ -238,11 +233,12 @@ void Renderer::renderDeferred(Camera* camera)
 	//enable all buffers back
 	gbuffers_fbo->enableAllBuffers();
 
-	renderSkyBox(camera);
+	renderSkyBox(camera, 1);
 	//render everything 
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 	for(int i=0;i<prefab_vector.size();i++)
 		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, true);
+
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
 
@@ -482,7 +478,6 @@ void Renderer::renderDeferred(Camera* camera)
 	//final_fbo->bind();
 	illumination_fbo->color_textures[0]->toViewport();
 	//final_fbo->unbind();
-
 	//and render the texture into the screen
 	if (Scene::scene->gBuffers)
 	{
@@ -490,10 +485,8 @@ void Renderer::renderDeferred(Camera* camera)
 		shader_depth->enable();
 		shader_depth->setUniform("u_camera_nearfar", Vector2(camera->near_plane, camera->far_plane));
 
-		glViewport(0, 0, w*0.5, h*0.5);
-		//reflections_fbo->color_textures[0]->toViewport();
-		//gbuffers_fbo->color_textures[0]->toViewport();
-		reflection_probes[0]->cubemap->toViewport();
+		glViewport(0, 0, w * 0.5, h * 0.5);
+		gbuffers_fbo->color_textures[0]->toViewport();
 
 		glViewport(w*0.5, 0, w*0.5, h*0.5);
 		gbuffers_fbo->color_textures[1]->toViewport();
@@ -505,6 +498,11 @@ void Renderer::renderDeferred(Camera* camera)
 		gbuffers_fbo->depth_texture->toViewport(shader_depth);
 
 		glViewport(0, 0, w, h);
+	}
+	else if (Scene::scene->showIrrText && probes_texture)
+	{
+		glViewport(0, 0, w, h);
+		probes_texture->toViewport();
 	}
 	else
 	{
@@ -521,21 +519,6 @@ void Renderer::renderDeferred(Camera* camera)
 		else
 		{
 			illumination_fbo->color_textures[0]->toViewport();
-		}
-
-		if (Scene::scene->probes)
-		{
-			for (int i = 0; i < probes.size(); i++)
-			{
-				renderProbe(probes[i].pos, 5, (float*)&probes[i].sh);
-			}
-		}
-		if (Scene::scene->ref_probes)
-		{
-			for (int i = 0; i < reflection_probes.size(); i++)
-			{
-				renderReflectionProbe(reflection_probes[i]->pos, 10, reflection_probes[i]->cubemap);
-			}
 		}
 
 		if (Scene::scene->sun && Scene::scene->sun->has_shadow && volumetric)
@@ -588,6 +571,21 @@ void Renderer::renderDeferred(Camera* camera)
 			glDisable(GL_BLEND);
 
 		}
+
+		if (Scene::scene->probes)
+		{
+			for (int i = 0; i < probes.size(); i++)
+			{
+				renderProbe(probes[i].pos, 5, (float*)&probes[i].sh);
+			}
+		}
+		if (Scene::scene->ref_probes)
+		{
+			for (int i = 0; i < reflection_probes.size(); i++)
+			{
+				renderReflectionProbe(reflection_probes[i]->pos, 10, reflection_probes[i]->cubemap);
+			}
+		}
 	}
 }
 
@@ -596,7 +594,7 @@ void GTR::Renderer::renderScene(Camera * camera, bool deferred)
 	std::vector<PrefabEntity*> prefab_vector = Scene::scene->getPrefabs();
 
 	if(!deferred)
-		renderSkyBox(camera);
+		renderSkyBox(camera, 0);
 	for (int i = 0; i < prefab_vector.size();i++) {
 		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, deferred);
 	}
@@ -957,11 +955,14 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 
 }
 
-void GTR::Renderer::renderSkyBox(Camera* camera)
+void GTR::Renderer::renderSkyBox(Camera* camera, bool flag)
 {
-
 	if (!environment)
+	{
 		environment = CubemapFromHDRE("data/textures/panorama.hdre");
+		environment1 = CubemapFromHDRE("data/textures/studio.hdre");
+	}
+		
 
 	Shader* shader = Shader::Get("skybox");
 	glDisable(GL_CULL_FACE);
@@ -974,7 +975,10 @@ void GTR::Renderer::renderSkyBox(Camera* camera)
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
 	shader->setUniform("u_model", model);
-	shader->setUniform("u_texture", environment, 0);
+	if(flag)
+		shader->setUniform("u_texture", environment, 0);
+	else
+		shader->setUniform("u_texture", environment1, 1);
 	Mesh::Get("data/meshes/box.ASE")->render(GL_TRIANGLES);
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
@@ -996,7 +1000,7 @@ void GTR::Renderer::computeReflection()
 	sReflectionProbe* probe = new sReflectionProbe;
 
 	//set it up
-	probe->pos.set(90, 56, -72);
+	probe->pos.set(90, 250, -72);
 	probe->cubemap = new Texture();
 	probe->cubemap->createCubemap(
 		512, 512,
@@ -1060,6 +1064,10 @@ void GTR::Renderer::renderReflectionProbe(Vector3 pos, float size, Texture *cube
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
 	shader->setUniform("u_model", model);
+	cubemap->bind();
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	cubemap->unbind();
 	shader->setUniform("u_texture", cubemap, 0);
 	mesh->render(GL_TRIANGLES);
 

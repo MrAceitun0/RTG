@@ -269,8 +269,8 @@ void main()
 
 	vec3 N = normalize(v_normal);
 	
-	if(u_hasgamma)
-		color.xyz = gamma(color.xyz);
+	//if(u_hasgamma)
+		//color.xyz = gamma(color.xyz);
 		
 	if(u_hasmetal)
 	{
@@ -533,8 +533,8 @@ void main()
 
 	color.xyz *= direct;
 
-	if(u_hasgamma)
-		color.xyz = degamma(color.xyz);
+	//if(u_hasgamma)
+		//color.xyz = degamma(color.xyz);
 
 	FragColor = vec4(color.xyz, 1.0);
 }
@@ -802,18 +802,10 @@ out vec4 FragColor;
 
 void main()
 {
-	/*vec3 N = normalize( v_normal );
+	vec3 N = normalize( v_normal );
 	vec3 V = normalize( v_world_position - u_camera_position );
 	vec3 R = reflect( V, N );
-	FragColor = textureLod( u_texture, R, 0.0 );*/
-	
-	vec3 N = normalize( v_normal );
-	vec3 V = normalize( u_camera_position - v_world_position );
-
-	vec3 R = reflect( V, N );
-
-	FragColor = texture( u_texture, R );
-
+	FragColor = textureLod( u_texture, R, 0.0 );
 }
 
 \tonemapper.fs

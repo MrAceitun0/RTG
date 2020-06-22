@@ -40,6 +40,7 @@ namespace GTR {
 		FBO* irr_fbo;
 		FBO* reflections_fbo;
 		Texture * environment;
+		Texture* environment1;
 		//FBO* final_fbo;
 		FBO* volumetric_fbo;
 		
@@ -79,7 +80,7 @@ namespace GTR {
 
 		void renderShadowmap();
 
-		void renderSkyBox(Camera* camera);
+		void renderSkyBox(Camera* camera, bool flag);
 
 		void computeReflection();
 		void computeIrradiance();
