@@ -784,16 +784,6 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 			renderReflectionProbe(reflection_probes[i]->pos, 10, reflection_probes[i]->cubemap);
 		}
 	}
-	else if (Scene::scene->gBuffers)
-	{
-	
-		glViewport(0, 0, Application::instance->window_width*0.5, Application::instance->window_height*0.5);
-		//reflections_fbo->color_textures[0]->toViewport();
-		//gbuffers_fbo->color_textures[0]->toViewport();
-		reflection_probes[0]->cubemap->toViewport();
-	}
-
-
 }
 
 void GTR::Renderer::renderShadowmap()
@@ -970,21 +960,15 @@ void GTR::Renderer::renderSkyBox(Camera* camera, bool flag)
 	glDisable(GL_DEPTH_TEST);
 	Matrix44 model;
 	model.setTranslation(camera->eye.x, camera->eye.y, camera->eye.z);
-	model.scale(10, 10, 10);
 	shader->enable();
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
 	shader->setUniform("u_model", model);
-	if(flag)
-		shader->setUniform("u_texture", environment, 0);
-	else
-		shader->setUniform("u_texture", environment1, 1);
+	shader->setUniform("u_texture", environment, 0);
+
 	Mesh::Get("data/meshes/box.ASE")->render(GL_TRIANGLES);
-	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 	shader->disable();
-
-
 }
 
 void GTR::Renderer::computeReflection()
@@ -1015,6 +999,7 @@ void GTR::Renderer::computeReflection()
 		//sReflectionProbe *p = reflection_probes[iP];
 		Camera cam;
 		cam.setPerspective(90, 1, 0.1, 1000);
+
 		//render the view from every side
 		for (int i = 0; i < 6; ++i)
 		{
@@ -1030,6 +1015,11 @@ void GTR::Renderer::computeReflection()
 			Vector3 up = cubemapFaceNormals[i][1];
 			cam.lookAt(eye, center, up);
 			cam.enable();
+
+			glClearColor(0.0, 0.0, 0.0, 1.0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			glDisable(GL_BLEND);
 			glEnable(GL_DEPTH_TEST);
 			glEnable(GL_CULL_FACE);
 

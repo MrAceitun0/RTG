@@ -513,6 +513,8 @@ void main()
 {
 	vec2 uv = gl_FragCoord.xy * u_iRes.xy; //extract uvs from pixel screenpos
 	vec4 color = texture( u_color_texture, uv );
+	if(u_hasgamma)
+		color.xyz = gamma(color.xyz);
 	float metalness = texture( u_normal_texture, uv ).a;
 	float roughness = texture( u_color_texture, uv ).a;
 
