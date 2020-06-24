@@ -13,6 +13,7 @@ skybox basic.vs skybox.fs
 ref_probes basic.vs ref_probes.fs
 tonemapper quad.vs tonemapper.fs
 volumetric_directional quad.vs volumetricdir.fs
+deferred_reflections quad.vs deferred_reflections.fs
 
 \basic.vs
 
@@ -108,6 +109,7 @@ in vec4 v_color;
 
 uniform vec4 u_color;//material->color
 uniform sampler2D u_texture;//texture
+//uniform sampler2D u_emissive_texture;//texture
 uniform vec3 u_emissive_factor;
 
 uniform float u_time;
@@ -222,7 +224,11 @@ void main()
 	
 	//apply to final pixel color
 	//emissive texture
+	//vec4 emissive=texture2D( u_emissive_texture, uv);
+
+	//light += emissive.xyz *u_emissive_factor;
 	light += u_emissive_factor;
+
 	color.xyz *= light*u_light_intensity; 
 
 	FragColor = color;
@@ -810,6 +816,7 @@ void main()
 	FragColor = textureLod( u_texture, R, 0.0 );
 }
 
+
 \tonemapper.fs
 
 #version 330 core
@@ -944,4 +951,51 @@ void main()
 	}
 
 	FragColor = vec4(color, total_density);
+}
+
+\deferred_reflections.fs
+
+#version 330 core
+
+//in vec3 v_normal;
+
+uniform mat4 u_inverse_viewprojection;
+uniform mat4 u_viewprojection;
+uniform sampler2D u_color_texture;
+uniform sampler2D u_normal_texture;
+uniform sampler2D u_depth_texture;
+uniform vec2 u_iRes;
+uniform vec3 u_camera_position;
+uniform samplerCube u_environment_texture;
+uniform sampler2D u_ao_texture;
+
+in vec2 v_uv;
+out vec4 FragColor;
+
+void main()
+{
+	
+	vec2 uv = gl_FragCoord.xy * u_iRes;
+
+	float depth = texture( u_depth_texture, uv ).x;
+	vec4 normal = texture(u_normal_texture, uv);
+	vec4 color = texture(u_color_texture, uv);
+
+	if(depth==1.0)
+		discard;
+
+	vec3 N = normalize( normal.xyz * 2.0 - 1.0 );
+	vec4 screen_position = vec4(uv * 2.0 - vec2(1.0), depth * 2.0 - 1.0,1.0);
+	vec4 proj_worldpos = u_inverse_viewprojection * screen_position;
+	vec3 worldpos = proj_worldpos.xyz / proj_worldpos.w;
+
+	float metalness = normal.a;
+	float roughness = color.a;
+
+	vec3 V = normalize( u_camera_position - worldpos );
+	vec3 R = reflect( V, N );
+
+	vec3 reflection = color.xyz * textureLod(u_environment_texture, R,roughness * 5.0 ).xyz;
+
+	FragColor = vec4( reflection, metalness);
 }

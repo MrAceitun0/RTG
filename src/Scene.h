@@ -9,6 +9,8 @@ class Scene {
 public:
 	static Scene* scene; //singleton
 
+	enum{ FORWARD,DEFERRED};
+
 	std::vector<BaseEntity*> entities;
 	Vector3 ambient=Vector3(.1,.1,.1);
 	bool pbr = false;
@@ -19,9 +21,10 @@ public:
 	bool ref_probes = false;
 	bool showIrrText = false;
 	bool deferred = false;
+	bool show_reflections = false;
 	Vector4 bg_color;
 	Light* sun;
-
+	char render_type;
 	Scene() { scene = this; };
 
 	std::vector<PrefabEntity*> getPrefabs();

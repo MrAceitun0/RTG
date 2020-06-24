@@ -63,7 +63,7 @@ void Renderer::renderProbe(Vector3 pos, float size, float* coeffs)
 	Shader* shader = Shader::Get("probe");
 	Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
 
-	glDisable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 
@@ -120,9 +120,9 @@ void GTR::Renderer::computeIrradiance()
 	if (!irr_fbo)
 	{
 		irr_fbo = new FBO();
-		irr_fbo->create(64, 64,1,GL_RGB,GL_FLOAT);
+		irr_fbo->create(64, 64, 1, GL_RGB, GL_FLOAT);
 	}
-	
+
 	FloatImage images[6]; //here we will store the six views
 
 	//set the fov to 90 and the aspect to 1
@@ -145,6 +145,8 @@ void GTR::Renderer::computeIrradiance()
 
 			//render the scene from this point of view
 			irr_fbo->bind();
+			glClearColor(0.0, 0.0, 0.0, 1.0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			renderScene(&cam, false);//renderforward
 			irr_fbo->unbind();
 
@@ -154,7 +156,7 @@ void GTR::Renderer::computeIrradiance()
 		//compute the coefficients given the six images
 		p.sh = computeSH(images);
 	}
-	
+
 	// create the texture to store the probes(do this ONCE!!!)
 	if (!probes_texture)
 	{
@@ -164,13 +166,13 @@ void GTR::Renderer::computeIrradiance()
 			GL_RGB, //3 channels per coefficient
 			GL_FLOAT); //they require a high range
 	}
-		
+
 	//we must create the color information for the texture. because every SH are 27 floats in the RGB,RGB,... order, we can create an array of SphericalHarmonics and use it as pixels of the texture
 	SphericalHarmonics* sh_data = NULL;
 	sh_data = new SphericalHarmonics[dim.x * dim.y * dim.z];
 
 	//here we fill the data of the array with our probes in x,y,z order...
-	for (int i = 0;i < probes.size();i++) 
+	for (int i = 0;i < probes.size();i++)
 	{
 		sProbe& probe = probes[i];
 		int index = probe.index;
@@ -184,7 +186,7 @@ void GTR::Renderer::computeIrradiance()
 	probes_texture->bind();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	probes_texture->unbind();
+
 
 	//always free memory after allocating it!!!
 	delete[] sh_data;
@@ -506,7 +508,7 @@ void Renderer::renderDeferred(Camera* camera)
 	}
 	else
 	{
-		if (use_fx)
+		if (use_fx) //TONEMAPPER
 		{
 			Shader* sh_tonemapper = Shader::Get("tonemapper");
 			sh_tonemapper->enable();
@@ -516,12 +518,8 @@ void Renderer::renderDeferred(Camera* camera)
 			sh_tonemapper->setUniform("u_igamma", 1.0f / tonemapper_igamma);
 			illumination_fbo->color_textures[0]->toViewport(sh_tonemapper);
 		}
-		else
-		{
-			illumination_fbo->color_textures[0]->toViewport();
-		}
 
-		if (Scene::scene->sun && Scene::scene->sun->has_shadow && volumetric)
+		if (Scene::scene->sun && Scene::scene->sun->has_shadow && volumetric) //VOLUMETRIC
 		{
 			glDisable(GL_BLEND);
 
@@ -571,6 +569,33 @@ void Renderer::renderDeferred(Camera* camera)
 			glDisable(GL_BLEND);
 
 		}
+		if (Scene::scene->show_reflections&&environment&&reflections_fbo) {
+
+			Mesh* quad = Mesh::getQuad();
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			Shader *shader = Shader::Get("deferred_reflections");
+			shader->enable();
+			shader->setUniform("u_inverse_viewprojection", inv_vp);
+			shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+			shader->setTexture("u_color_texture", gbuffers_fbo->color_textures[0], 0);
+			shader->setTexture("u_normal_texture", gbuffers_fbo->color_textures[1], 0);
+			shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 1);
+			shader->setUniform("u_iRes", Vector2(1.0 / (float)gbuffers_fbo->depth_texture->width, 1.0 / (float)gbuffers_fbo->depth_texture->height));
+			shader->setUniform("u_camera_position", camera->eye);
+
+			Texture * nearest_cubemap = environment;
+			for (int i = 0;i < reflection_probes.size();++i) {
+				sReflectionProbe* probe = reflection_probes[i];
+				float dist = camera->eye.distance(probe->pos);
+				if (dist < 50 && probe->cubemap)
+					nearest_cubemap = probe->cubemap;
+			}
+			shader->setTexture("u_environment_texture", nearest_cubemap, 0);
+			quad->render(GL_TRIANGLES);
+
+		}
 
 		if (Scene::scene->probes)
 		{
@@ -595,6 +620,7 @@ void GTR::Renderer::renderScene(Camera * camera, bool deferred)
 
 	if(!deferred)
 		renderSkyBox(camera, 0);
+
 	for (int i = 0; i < prefab_vector.size();i++) {
 		renderPrefab(prefab_vector[i]->model, prefab_vector[i]->prefab, camera, deferred);
 	}
@@ -675,9 +701,11 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 	Shader* shader_shadow = NULL;
 	shader_shadow = Shader::Get("shadow");
 	Texture* texture = NULL;
+	Texture* texture_emissive = NULL;
 
 	texture = material->color_texture;
-	
+	texture_emissive = material->emissive_texture;
+
 
 	if (render_shadowmap) { //if we are rendering shadowmap
 
@@ -702,7 +730,7 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 			glEnable(GL_CULL_FACE);
 
 		//chose a shader
-		
+
 		shader = Shader::Get("texture");
 
 		//no shader? then nothing to render
@@ -720,11 +748,14 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 		shader->setUniform("u_camera_position", camera->eye);
 		shader->setUniform("u_model", model);
+		//shader->setUniform("u_ambient_light", Scene::scene->ambient);
 
 		shader->setUniform("u_color", material->color);
 		if (texture)
 			shader->setUniform("u_texture", texture, 0);
-		shader->setUniform("u_ambient_light", Scene::scene->ambient);
+		/*if(texture_emissive)
+			shader->setUniform("u_emissive_texture", texture_emissive, 0);*/
+
 		shader->setUniform("u_emissive_factor", material->emissive_factor);
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
@@ -744,9 +775,9 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 			else {
 				glEnable(GL_BLEND);
 			}
-			if (light_vector[i]->has_shadow) 
+			if (light_vector[i]->has_shadow)
 			{
-				
+
 				//get the depth texture from the FBO
 				Texture* shadowmap = light_vector[i]->shadow_fbo->depth_texture;
 
@@ -761,7 +792,7 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 
 				//we will also need the shadow bias
 				shader->setUniform("u_shadow_bias", light_vector[i]->shadow_bias);
-				
+
 			}
 
 			//pass the light data to the shader
@@ -777,13 +808,6 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		glDepthFunc(GL_LESS); //as default*/
 	}
 
-	if (Scene::scene->ref_probes)
-	{
-		for (int i = 0; i < reflection_probes.size(); i++)
-		{
-			renderReflectionProbe(reflection_probes[i]->pos, 10, reflection_probes[i]->cubemap);
-		}
-	}
 }
 
 void GTR::Renderer::renderShadowmap()
@@ -847,6 +871,7 @@ void GTR::Renderer::renderShadowmap()
 	
 	render_shadowmap = false;
 }
+
 void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Material * material, Camera * camera)
 {
 	//in case there is nothing to do
@@ -857,7 +882,7 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 	Shader* shader = NULL;
 	Texture* texture = NULL;
 	Texture* texture_met_rough = NULL;
-	Texture* texture_emissive = NULL;
+	
 
 
 	texture = material->color_texture;
@@ -927,9 +952,6 @@ void Renderer::renderMeshDeferred(const Matrix44 model, Mesh * mesh, GTR::Materi
 		shader->setUniform("u_roughness", material->roughness_factor);
 		shader->setUniform("u_emissive_factor", material->emissive_factor);
 
-		//shader->setUniform("u_emissive", texture_emissive, 2);
-		//shader->setUniform("u_emissive_factor", material->emissive_factor);
-
 		//this is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
 		shader->setUniform("u_alpha_cutoff", material->alpha_mode == GTR::AlphaMode::MASK ? material->alpha_cutoff : 0);
 
@@ -973,26 +995,28 @@ void GTR::Renderer::renderSkyBox(Camera* camera, bool flag)
 
 void GTR::Renderer::computeReflection()
 {
-	/*if (!environment)
-		environment = CubemapFromHDRE("data/textures/panorama.hdre");*/
+	reflection_probes.clear();
+
 
 	if (!reflections_fbo)
 		reflections_fbo = new FBO();
 
 	
-	//create the probe
-	sReflectionProbe* probe = new sReflectionProbe;
+	for (int z = 0;z < 3;z++) 
+		for (int x = 0;x < 3;x++) {
+			//create the probe
+			sReflectionProbe* probe = new sReflectionProbe;
+			sReflectionProbe* probe2 = new sReflectionProbe;
+			//set it up
+			probe->pos.set(x*150, 100, -z*150);
+			probe->cubemap = new Texture();
+			probe->cubemap->createCubemap(512, 512,	NULL,GL_RGB, GL_UNSIGNED_INT, false);
+			//add it to the list
+			reflection_probes.push_back(probe);
 
-	//set it up
-	probe->pos.set(90, 250, -72);
-	probe->cubemap = new Texture();
-	probe->cubemap->createCubemap(
-		512, 512,
-		NULL,
-		GL_RGB, GL_UNSIGNED_INT, false);
+		}
 
-	//add it to the list
-	reflection_probes.push_back(probe);
+
 
 	for (int iP = 0;iP < reflection_probes.size();iP++) {
 

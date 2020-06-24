@@ -22,7 +22,6 @@ Camera* camera = nullptr;
 GTR::Prefab* prefab_car = nullptr;
 GTR::Prefab* prefab_plane = nullptr;
 GTR::Prefab* prefab_house = nullptr;
-GTR::Prefab* prefab_lamp = nullptr;
 GTR::Renderer* renderer = nullptr;
 FBO* fbo;
 
@@ -68,12 +67,18 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 
 	car = new PrefabEntity(prefab_car, true);
 	house = new PrefabEntity(prefab_house, true);
-	//Lets load some object to render
-	//car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
 
+	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
+	car->model.translate(-200, 0, 100);
 	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
 	house->model.scale(100, 100, 100);
-	GTR::Material* hMaterial = new GTR::Material();
+	house->model.translate(0, 0.3, 0);
+	
+	car->prefab->root.children[0]->children[0]->material->emissive_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_emissive.png");
+	car->prefab->root.children[0]->children[0]->material->color_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_baseColor.png");
+	car->prefab->root.children[0]->children[0]->material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
+	car->prefab->root.children[1]->children[0]->material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
+	car->prefab->root.children[2]->children[0]->material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
 	house->prefab->root.children[1]->material->metallic_roughness_texture= Texture::Get("data/prefabs/brutalism/concrete_rough_4k.png");
 	house->prefab->root.children[1]->material->metallic_factor = 0.0f;
 	house->prefab->root.children[1]->material->roughness_factor = 0.1f;
@@ -135,11 +140,11 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	prefab_plane->root.mesh = p;
 	prefab_plane->root.material = m;
 	plane = new PrefabEntity(prefab_plane, true);
-	//plane->model.setTranslation(0.0, 3, 0.0);
+	plane->model.setTranslation(0.0, 3, 0.0);
 
 	//add entities
 	Scene::scene->entities.push_back(plane);
-	//Scene::scene->entities.push_back(car);
+	Scene::scene->entities.push_back(car);
 	Scene::scene->entities.push_back(house);
 	Scene::scene->entities.push_back(spot);
 	//Scene::scene->entities.push_back(spot2);
@@ -154,7 +159,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//Scene::scene->entities.push_back(point3);
 	//Scene::scene->entities.push_back(point4);
 	//Scene::scene->entities.push_back(point5);
-	Scene::scene->entities.push_back(point6);
+	//Scene::scene->entities.push_back(point6);
 	//Scene::scene->entities.push_back(point7);
 	//Scene::scene->entities.push_back(point8);
 	//Scene::scene->entities.push_back(point9);
@@ -346,28 +351,59 @@ void Application::renderDebugGUI(void)
 	ImGui::Text(getGPUStats().c_str());					   // Display some text (you can use a format strings too)
 
 	ImGui::Checkbox("Wireframe", &render_wireframe);
-	ImGui::Checkbox("Deferred", &Scene::scene->deferred);
-	ImGui::ColorEdit4("BG color", Scene::scene->bg_color.v);
-	ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
-	ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
-	ImGui::Checkbox("Blur SSAO", &renderer->ssao_blurring);
-	ImGui::DragFloat("SSAO Bias", &Scene::scene->ssao_bias, 0.001f, 0.0f, 0.2f);
-	if(ImGui::Button("Compute Irradiance"))
-		renderer->computeIrradiance();
-	if (ImGui::Button("Compute Reflection"))
-		renderer->computeReflection();
-	ImGui::Checkbox("Probes", &Scene::scene->probes);
-	ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
-	ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
+	
+	ImGui::Combo("Render", (int*)&Scene::scene->render_type, "FORWARD\0DEFERRED", 2);
+	if (Scene::scene->render_type == Scene::DEFERRED) {
+		Scene::scene->deferred = true;
+		ImGui::ColorEdit4("BG color", Scene::scene->bg_color.v);
+		ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
+		ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
+		ImGui::Checkbox("Blur SSAO", &renderer->ssao_blurring);
+		ImGui::DragFloat("SSAO Bias", &Scene::scene->ssao_bias, 0.001f, 0.0f, 0.2f);
 
-	ImGui::Checkbox("Tonemapper", &renderer->use_fx);
-	ImGui::DragFloat("Tonemapper scale", &renderer->tonemapper_scale, 0.001f, 0.0f, 3.0f);
-	ImGui::DragFloat("Tonemapper average lum", &renderer->tonemapper_average_lum, 0.001f, 0.0f, 3.0f);
-	ImGui::DragFloat("Tonemapper lumwhite2", &renderer->tonemapper_lumwhite2, 0.001f, 0.0f, 3.0f);
-	ImGui::DragFloat("Tonemapper igamma", &renderer->tonemapper_igamma, 0.001f, 0.0f, 3.0f);
+		//IRRADIANCE
+		if (ImGui::Button("Compute Irradiance"))
+			renderer->computeIrradiance();
+		if (renderer->irr_fbo) {
+			ImGui::Checkbox("Irradiance Probes", &Scene::scene->probes);
+			ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
+		}
 
-	ImGui::Checkbox("Volumetric Lighting", &renderer->volumetric);
-	ImGui::DragFloat("Sample Density", &renderer->sampledensity, 0.001f, 0.0f, 0.05f);
+		//REFLECTION
+		if (ImGui::Button("Compute Reflection"))
+			renderer->computeReflection();
+
+		if (renderer->reflections_fbo) {
+			ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
+			ImGui::Checkbox("Show Reflections", &Scene::scene->show_reflections);
+		}
+
+		//TONEMAPPER
+		ImGui::Checkbox("Tonemapper", &renderer->use_fx);
+		if (renderer->use_fx) {
+			ImGui::DragFloat("Tonemapper scale", &renderer->tonemapper_scale, 0.001f, 0.0f, 3.0f);
+			ImGui::DragFloat("Tonemapper average lum", &renderer->tonemapper_average_lum, 0.001f, 0.0f, 3.0f);
+			ImGui::DragFloat("Tonemapper lumwhite2", &renderer->tonemapper_lumwhite2, 0.001f, 0.0f, 3.0f);
+			ImGui::DragFloat("Tonemapper igamma", &renderer->tonemapper_igamma, 0.001f, 0.0f, 3.0f);
+		}
+
+		//VOLUMETRIC
+		ImGui::Checkbox("Volumetric Lighting", &renderer->volumetric);
+		if(renderer->volumetric)
+			ImGui::DragFloat("Sample Density", &renderer->sampledensity, 0.001f, 0.0f, 0.05f);
+	}
+	else {
+		Scene::scene->deferred = false;
+
+		if (ImGui::Button("Compute Reflection"))
+			renderer->computeReflection();
+
+		if (renderer->reflections_fbo) {
+			ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
+			//ImGui::Checkbox("Show Reflections", &Scene::scene->show_reflections);
+		}
+		
+	}
 
 	//add info to the debug panel about the camera
 	if (ImGui::TreeNode(camera, "Camera")) {
@@ -378,6 +414,10 @@ void Application::renderDebugGUI(void)
 	//example to show prefab info: first param must be unique!
 	if (house->prefab && ImGui::TreeNode(house->prefab, "House")) {
 		house->prefab->root.renderInMenu();
+		ImGui::TreePop();
+	}
+	if (car->prefab && ImGui::TreeNode(car->prefab, "Car")) {
+		car->prefab->root.renderInMenu();
 		ImGui::TreePop();
 	}
 
