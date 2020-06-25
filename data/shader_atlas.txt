@@ -271,6 +271,9 @@ void main()
 	vec4 color = u_color;
 	color *= texture( u_texture, uv );
 
+	if(v_world_position.y < 0.0)
+		discard;
+
 	if(color.a < 0.9 && floor(mod(gl_FragCoord.x,2.0)) !=floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
 
@@ -1022,12 +1025,13 @@ out vec4 FragColor;
 
 void main()
 {
-	vec2 uv = gl_FragCoord.xy * u_iRes;
+	vec2 uv = v_uv;
+	uv = gl_FragCoord.xy * u_iRes;
 	uv.x = 1 - uv.x;
 
 	vec4 color = u_color;
 
-	color *= texture( u_texture, uv, 3.0 );
+	color *= texture( u_texture, uv, 10.0);
 
 	if(color.a < u_alpha_cutoff)
 		discard;
