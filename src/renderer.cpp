@@ -694,9 +694,6 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 	Texture* texture = NULL;
 	Texture* texture_emissive = NULL;
 
-	texture = material->color_texture;
-	texture_emissive = material->emissive_texture;
-
 
 	if (render_shadowmap) { //if we are rendering shadowmap
 
@@ -712,6 +709,8 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 	}
 	else {
 
+		texture = material->color_texture;
+		texture_emissive = material->emissive_texture;
 		//allow to render pixels that have the same depth as the one in the depth buffer
 		glDepthFunc(GL_LEQUAL);
 		//select if render both sides of the triangles
@@ -722,7 +721,12 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 
 		//chose a shader
 
-		shader = Shader::Get("texture");
+		if (material->planarReflection == true)
+			shader = Shader::Get("planar_reflection");
+		else
+			shader = Shader::Get("texture");
+
+		shader->setUniform("u_iRes", Vector2(1.0 / (float)Application::instance->window_width, 1.0 / (float)Application::instance->window_height));
 
 		//no shader? then nothing to render
 		if (!shader)
@@ -964,7 +968,6 @@ void GTR::Renderer::renderSkyBox(Camera* camera, bool flag)
 	if (!environment)
 	{
 		environment = CubemapFromHDRE("data/textures/panorama.hdre");
-		environment1 = CubemapFromHDRE("data/textures/studio.hdre");
 	}
 		
 

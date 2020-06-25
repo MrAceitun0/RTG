@@ -26,6 +26,8 @@ namespace GTR {
 		std::string name;
 		void registerMaterial(const char* name);
 
+		bool planarReflection = false;
+
 		//parameters to control transparency
 		AlphaMode alpha_mode;	//could be NO_ALPHA, MASK (alpha cut) or BLEND (alpha blend)
 		float alpha_cutoff;		//pixels with alpha than this value shouldnt be rendered
@@ -33,8 +35,8 @@ namespace GTR {
 
 								//material properties
 		Vector4 color;			//color and opacity
-		float roughness_factor = 0.2;	//how smooth or rough is the surface
-		float metallic_factor = 0.5;	//how metallic is the surface
+		float roughness_factor = 0.0;	//how smooth or rough is the surface
+		float metallic_factor = 0.0;	//how metallic is the surface
 		Vector3 emissive_factor;//does this object emit light?
 
 								//textures

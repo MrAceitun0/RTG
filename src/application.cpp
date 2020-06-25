@@ -73,10 +73,10 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	house = new PrefabEntity(prefab_house, true);
 
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	car->model.translate(-200, 0, 100);
+	car->model.translate(0, 0, 0);
 	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
 	house->model.scale(100, 100, 100);
-	house->model.translate(0, 0.3, 0);
+	house->model.translate(100, 0, 100);
 	
 	car->prefab->root.children[0]->children[0]->material->emissive_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_emissive.png");
 	car->prefab->root.children[0]->children[0]->material->color_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_baseColor.png");
@@ -147,7 +147,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	plane->model.setTranslation(0.0, 3, 0.0);
 
 	//add entities
-	Scene::scene->entities.push_back(plane);
+	//Scene::scene->entities.push_back(plane);
 	Scene::scene->entities.push_back(car);
 	Scene::scene->entities.push_back(house);
 	Scene::scene->entities.push_back(spot);
@@ -184,12 +184,13 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	reflection_prefab = new GTR::Prefab();
 	Mesh* reflectionMesh = new Mesh();
 	reflection_mat = new GTR::Material();
+	reflection_mat->planarReflection = true;
 	reflectionMesh->createPlane(700);
 	reflection_mat->color.set(1, 0, 0, 1);
 	reflection_prefab->root.mesh = reflectionMesh;
 	reflection_prefab->root.material = reflection_mat;
 	reflection_floor = new PrefabEntity(reflection_prefab, true);
-	reflection_floor->model.setTranslation(0.0, -10, 0.0);
+	reflection_floor->model.setTranslation(0.0, 0.0, 0.0);
 	Scene::scene->entities.push_back(reflection_floor);
 
 	renderer->planar_reflection_fbo = new FBO();
@@ -228,7 +229,8 @@ void Application::render(void)
 	renderer->planar_reflection_fbo->bind();
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	Camera reflected_cam = *camera;
+	Camera reflected_cam ;
+	reflected_cam = *camera;
 	Vector3 reflected_eye = camera->eye * Vector3(1, -1, 1);
 	Vector3 reflected_center = camera->center * Vector3(1, -1, 1);
 	reflected_cam.lookAt(reflected_eye, reflected_center, Vector3(0, -1, 0));
@@ -236,8 +238,9 @@ void Application::render(void)
 	renderer->renderScene(&reflected_cam, false);
 	renderer->planar_reflection_fbo->unbind();
 	renderer->planar_reflection_fbo->color_textures[0]->generateMipmaps();
+	reflection_floor->prefab->root.material->color_texture = renderer->planar_reflection_fbo->color_textures[0];
 
-	camera->enable();
+	//camera->enable();
 	if(Scene::scene->deferred)
 		renderer->renderDeferred(camera);
 	else
