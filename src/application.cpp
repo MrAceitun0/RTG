@@ -36,6 +36,10 @@ Light *spot, *spot2, *spot3, *spot4, *spot5, *spot6;
 Light *point, *point2, *point3, *point4, *point5, *point6, *point7, *point8, *point9, *point10, *point11, *point12, *point13;
 bool temp = false;
 
+PrefabEntity* reflection_floor;
+GTR::Prefab* reflection_prefab = nullptr;
+GTR::Material* reflection_mat = nullptr;
+
 Application::Application(int window_width, int window_height, SDL_Window* window)
 {
 	this->window_width = window_width;
@@ -176,7 +180,20 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//This class will be the one in charge of rendering all 
 	renderer = new GTR::Renderer(); //here so we have opengl ready in constructor
 	renderer->random_points = renderer->generateSpherePoints(64, 1.0f, true);
-	//renderer->environment = renderer->CubemapFromHDRE("data/studio.hdre");
+	
+	reflection_prefab = new GTR::Prefab();
+	Mesh* reflectionMesh = new Mesh();
+	reflection_mat = new GTR::Material();
+	reflectionMesh->createPlane(700);
+	reflection_mat->color.set(1, 0, 0, 1);
+	reflection_prefab->root.mesh = reflectionMesh;
+	reflection_prefab->root.material = reflection_mat;
+	reflection_floor = new PrefabEntity(reflection_prefab, true);
+	reflection_floor->model.setTranslation(0.0, -10, 0.0);
+	Scene::scene->entities.push_back(reflection_floor);
+
+	renderer->planar_reflection_fbo = new FBO();
+	renderer->planar_reflection_fbo->create(1024, 1024);
 
 	//hide the cursor
 	SDL_ShowCursor(!mouse_locked); //hide or show the mouse
@@ -197,9 +214,6 @@ void Application::render(void)
 	// Clear the color and the depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     checkGLErrors();
-    
-	//set the camera as default (used by some functions in the framework)
-	camera->enable();
 
 	//set default flags
 	glDisable(GL_BLEND);
@@ -211,12 +225,24 @@ void Application::render(void)
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	//renderer->renderSkyBox(camera);
+	renderer->planar_reflection_fbo->bind();
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	Camera reflected_cam = *camera;
+	Vector3 reflected_eye = camera->eye * Vector3(1, -1, 1);
+	Vector3 reflected_center = camera->center * Vector3(1, -1, 1);
+	reflected_cam.lookAt(reflected_eye, reflected_center, Vector3(0, -1, 0));
+	reflected_cam.enable();
+	renderer->renderScene(&reflected_cam, false);
+	renderer->planar_reflection_fbo->unbind();
+	renderer->planar_reflection_fbo->color_textures[0]->generateMipmaps();
+
+	camera->enable();
 	if(Scene::scene->deferred)
 		renderer->renderDeferred(camera);
 	else
 		renderer->renderScene(camera,false);
-
+		
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 }

@@ -10,6 +10,7 @@ public:
 	static Scene* scene; //singleton
 
 	enum{ FORWARD,DEFERRED};
+	enum { DIRECTIONAL, POINT, SPOT };
 
 	std::vector<BaseEntity*> entities;
 	Vector3 ambient=Vector3(.1,.1,.1);
@@ -25,6 +26,7 @@ public:
 	Vector4 bg_color;
 	Light* sun;
 	char render_type;
+	char volumetric_type;
 	Scene() { scene = this; };
 
 	std::vector<PrefabEntity*> getPrefabs();

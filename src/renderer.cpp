@@ -26,10 +26,9 @@ Renderer::Renderer()
 	reflections_fbo = NULL;
 	environment = NULL;
 	probes_texture = NULL;
-	//final_fbo = NULL;
 	volumetric_fbo = NULL;
 	environment1 = NULL;
-
+	planar_reflection_fbo = NULL;
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -338,7 +337,6 @@ void Renderer::renderDeferred(Camera* camera)
 	//start rendering to the illumination fbo
 	illumination_fbo->bind();
 
-
 	//clear GB0 with the color (and depth)
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -470,17 +468,9 @@ void Renderer::renderDeferred(Camera* camera)
 
 	//be sure blending is not active
 	glDisable(GL_BLEND);
-	/*
-	if (!final_fbo)
-	{
-		final_fbo = new FBO();
-		final_fbo->create(w, h, 1, GL_RGB, GL_FLOAT);
-	}
-	*/
-	//final_fbo->bind();
+
 	illumination_fbo->color_textures[0]->toViewport();
-	//final_fbo->unbind();
-	//and render the texture into the screen
+
 	if (Scene::scene->gBuffers)
 	{
 		Shader* shader_depth = Shader::Get("depth");
@@ -497,7 +487,8 @@ void Renderer::renderDeferred(Camera* camera)
 		ssao_fbo->color_textures[0]->toViewport();
 		
 		glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
-		gbuffers_fbo->depth_texture->toViewport(shader_depth);
+		//gbuffers_fbo->depth_texture->toViewport(shader_depth);
+		planar_reflection_fbo->color_textures[0]->toViewport();
 
 		glViewport(0, 0, w, h);
 	}
@@ -753,6 +744,7 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		shader->setUniform("u_color", material->color);
 		if (texture)
 			shader->setUniform("u_texture", texture, 0);
+
 		/*if(texture_emissive)
 			shader->setUniform("u_emissive_texture", texture_emissive, 0);*/
 

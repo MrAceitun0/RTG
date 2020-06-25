@@ -43,7 +43,8 @@ namespace GTR {
 		Texture* environment1;
 		//FBO* final_fbo;
 		FBO* volumetric_fbo;
-		
+		FBO* planar_reflection_fbo;
+
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
 		std::vector<sReflectionProbe*> reflection_probes;
