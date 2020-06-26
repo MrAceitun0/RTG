@@ -73,7 +73,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	house = new PrefabEntity(prefab_house, true);
 
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	car->model.translate(-200, 0, 100);
+	car->model.translate(-200, -3, 100);
 	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
 	house->model.scale(100, 100, 100);
 	house->model.translate(0, 0.25, 0);
@@ -190,7 +190,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	reflection_prefab->root.mesh = reflectionMesh;
 	reflection_prefab->root.material = reflection_mat;
 	reflection_floor = new PrefabEntity(reflection_prefab, true);
-	reflection_floor->model.setTranslation(0.0, 3.0, 0.0);
+	reflection_floor->model.setTranslation(0.0, 0.0, 0.0);
 	reflection_floor->visible = false;
 	
 	Scene::scene->entities.push_back(reflection_floor);

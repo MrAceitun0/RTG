@@ -185,7 +185,7 @@ void GTR::Renderer::computeIrradiance()
 	probes_texture->bind();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
+	probes_texture->unbind();
 
 	//always free memory after allocating it!!!
 	delete[] sh_data;
@@ -396,6 +396,22 @@ void Renderer::renderDeferred(Camera* camera)
 
 			}
 
+			//Irradiance information to shader
+			if (irr_fbo)
+			{
+				sh->setUniform("u_irradiance", 1);
+				sh->setUniform("u_probes_texture", irr_fbo->color_textures[0], 5);
+				sh->setUniform("u_irr_end", Vector3(180, 150, 80));
+				sh->setUniform("u_irr_start", Vector3(-55, 10, -170));
+				sh->setUniform("u_irr_normal_distance", 1);
+				sh->setUniform("u_irr_delta", Vector3(180, 150, 80) - Vector3(-55, 10, -170));
+				sh->setUniform("u_irr_dims", Vector3(8, 6, 12));
+				sh->setUniform("u_num_probes", 576);
+			}
+			else
+				sh->setUniform("u_irradiance", 0);
+
+
 			glDisable(GL_DEPTH_TEST);
 
 			//render a fullscreen quad
@@ -446,6 +462,21 @@ void Renderer::renderDeferred(Camera* camera)
 
 			//pass all the info about this light…
 			light_vector[i]->setUniforms(sh);
+
+			//Irradiance information to shader
+			if (irr_fbo)
+			{
+				sh->setUniform("u_irradiance", 1);
+				sh->setUniform("u_probes_texture", irr_fbo->color_textures[0], 5);
+				sh->setUniform("u_irr_end", Vector3(180, 150, 80));
+				sh->setUniform("u_irr_start", Vector3(-55, 10, -170));
+				sh->setUniform("u_irr_normal_distance", 1);
+				sh->setUniform("u_irr_delta", Vector3(180, 150, 80) - Vector3(-55, 10, -170));
+				sh->setUniform("u_irr_dims", Vector3(8, 6, 12));
+				sh->setUniform("u_num_probes", 576);
+			}
+			else
+				sh->setUniform("u_irradiance", 0);
 
 			//render only the backfacing triangles of the sphere
 			glFrontFace(GL_CW);
