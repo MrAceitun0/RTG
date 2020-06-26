@@ -144,6 +144,9 @@ void main()
 	if(color.a < u_alpha_cutoff)
 		discard;
 
+	if(v_world_position.y < 0.0)
+		discard;
+
 	//PHONG
 
 	vec3 light = vec3(0.0);//here we can store the total amount of light
@@ -270,9 +273,6 @@ void main()
 	vec2 uv = v_uv;
 	vec4 color = u_color;
 	color *= texture( u_texture, uv );
-
-	if(v_world_position.y < 0.0)
-		discard;
 
 	if(color.a < 0.9 && floor(mod(gl_FragCoord.x,2.0)) !=floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
