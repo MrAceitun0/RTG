@@ -693,6 +693,8 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 	shader_shadow = Shader::Get("shadow");
 	Texture* texture = NULL;
 	Texture* texture_emissive = NULL;
+	if (camera == NULL)
+		camera = Camera::current;
 
 
 	if (render_shadowmap) { //if we are rendering shadowmap
@@ -726,7 +728,6 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		else
 			shader = Shader::Get("texture");
 
-		shader->setUniform("u_iRes", Vector2(1.0 / (float)Application::instance->window_width, 1.0 / (float)Application::instance->window_height));
 
 		//no shader? then nothing to render
 		if (!shader)
@@ -738,6 +739,8 @@ void Renderer::renderMeshWithLight(const Matrix44 model, Mesh* mesh, GTR::Materi
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
 		shader->enable();
+		shader->setUniform("u_iRes", Vector2(1.0 / (float)Application::instance->window_width, 1.0 / (float)Application::instance->window_height));
+
 
 		//upload uniforms
 		shader->setUniform("u_viewprojection", camera->viewprojection_matrix);

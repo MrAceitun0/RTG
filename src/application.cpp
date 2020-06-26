@@ -73,16 +73,15 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	house = new PrefabEntity(prefab_house, true);
 
 	car->prefab = GTR::Prefab::Get("data/prefabs/gmc/scene.gltf");
-	car->model.translate(0, 0, 0);
+	car->model.translate(-200, 0, 100);
 	house->prefab = GTR::Prefab::Get("data/prefabs/brutalism/scene.gltf");
 	house->model.scale(100, 100, 100);
-	house->model.translate(100, 0, 100);
+	house->model.translate(0, 0.25, 0);
 	
 	car->prefab->root.children[0]->children[0]->material->emissive_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_emissive.png");
 	car->prefab->root.children[0]->children[0]->material->color_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_baseColor.png");
 	car->prefab->root.children[0]->children[0]->material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
-	car->prefab->root.children[1]->children[0]->material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
-	car->prefab->root.children[2]->children[0]->material->metallic_roughness_texture = Texture::Get("data/prefabs/gmc/textures/Material_33_metallicRoughness.png");
+	car->prefab->root.children[2]->children[0]->material->two_sided = false;
 	house->prefab->root.children[1]->material->metallic_roughness_texture= Texture::Get("data/prefabs/brutalism/concrete_rough_4k.png");
 	house->prefab->root.children[1]->material->metallic_factor = 0.0f;
 	house->prefab->root.children[1]->material->roughness_factor = 0.1f;
@@ -117,6 +116,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 
 	spot = new Light(Vector3(1, 1, 0), light_type::SPOT, true, 90 * DEG2RAD, Vector3(300, 400, 0), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	spot->intensity = 3;
+	spot->has_shadow = true;
 	spot2 = new Light(Vector3(1, 1, 1), light_type::SPOT, true, 150 * DEG2RAD, Vector3(-40, 50, 80), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	spot2->intensity = 3;
 	spot3 = new Light(Vector3(1, 1, 1), light_type::SPOT, true, 150 * DEG2RAD, Vector3(40, 50, 80), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
@@ -147,7 +147,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	plane->model.setTranslation(0.0, 3, 0.0);
 
 	//add entities
-	//Scene::scene->entities.push_back(plane);
+	Scene::scene->entities.push_back(plane);
 	Scene::scene->entities.push_back(car);
 	Scene::scene->entities.push_back(house);
 	Scene::scene->entities.push_back(spot);
@@ -190,7 +190,9 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	reflection_prefab->root.mesh = reflectionMesh;
 	reflection_prefab->root.material = reflection_mat;
 	reflection_floor = new PrefabEntity(reflection_prefab, true);
-	reflection_floor->model.setTranslation(0.0, 0.0, 0.0);
+	reflection_floor->model.setTranslation(0.0, 3.0, 0.0);
+	reflection_floor->visible = false;
+	
 	Scene::scene->entities.push_back(reflection_floor);
 
 	renderer->planar_reflection_fbo = new FBO();
@@ -209,8 +211,8 @@ void Application::render(void)
 	//set the clear color (the background color)
 	glClearColor(Scene::scene->bg_color.x, Scene::scene->bg_color.y, Scene::scene->bg_color.z, 1.0);
 
-	if (!temp)
-		renderer->renderShadowmap();
+	/*SHADOWMAP*/
+	renderer->renderShadowmap();
 
 	// Clear the color and the depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -226,26 +228,40 @@ void Application::render(void)
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	renderer->planar_reflection_fbo->bind();
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	Camera reflected_cam ;
-	reflected_cam = *camera;
-	Vector3 reflected_eye = camera->eye * Vector3(1, -1, 1);
-	Vector3 reflected_center = camera->center * Vector3(1, -1, 1);
-	reflected_cam.lookAt(reflected_eye, reflected_center, Vector3(0, -1, 0));
-	reflected_cam.enable();
-	renderer->renderScene(&reflected_cam, false);
-	renderer->planar_reflection_fbo->unbind();
-	renderer->planar_reflection_fbo->color_textures[0]->generateMipmaps();
-	reflection_floor->prefab->root.material->color_texture = renderer->planar_reflection_fbo->color_textures[0];
+	if (Scene::scene->planar_reflection&&Scene::scene->render_type==Scene::scene->FORWARD) {
+		
+		reflection_floor->visible = true;
+		plane->visible = false;
+		
+		renderer->planar_reflection_fbo->bind();
 
-	//camera->enable();
-	if(Scene::scene->deferred)
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		Camera reflected_cam;
+		reflected_cam = *camera;
+		Vector3 reflected_eye = camera->eye * Vector3(1, -1, 1);
+		Vector3 reflected_center = camera->center * Vector3(1, -1, 1);
+		reflected_cam.lookAt(reflected_eye, reflected_center, Vector3(0, -1, 0));
+		reflected_cam.enable();
+		renderer->renderScene(&reflected_cam, false);
+		renderer->planar_reflection_fbo->unbind();
+		renderer->planar_reflection_fbo->color_textures[0]->generateMipmaps();
+		reflection_floor->prefab->root.material->color_texture = renderer->planar_reflection_fbo->color_textures[0];
+	}
+	else {
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		reflection_floor->visible = false;
+		plane->visible = true;
+	}
+
+	camera->enable();
+	if (Scene::scene->deferred)
 		renderer->renderDeferred(camera);
 	else
-		renderer->renderScene(camera,false);
-		
+		renderer->renderScene(camera, false);
+	//renderer->planar_reflection_fbo->color_textures[0]->toViewport();
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 }
@@ -431,6 +447,9 @@ void Application::renderDebugGUI(void)
 			ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
 			//ImGui::Checkbox("Show Reflections", &Scene::scene->show_reflections);
 		}
+
+		ImGui::Checkbox("Planar Reflection", &(Scene::scene->planar_reflection));
+			
 		
 	}
 
@@ -442,17 +461,23 @@ void Application::renderDebugGUI(void)
 
 	//example to show prefab info: first param must be unique!
 	if (house->prefab && ImGui::TreeNode(house->prefab, "House")) {
+		ImGui::Checkbox("Visible", &(house->visible));
 		house->prefab->root.renderInMenu();
 		ImGui::TreePop();
+
 	}
 	if (car->prefab && ImGui::TreeNode(car->prefab, "Car")) {
+		ImGui::Checkbox("Visible", &(car->visible));
 		car->prefab->root.renderInMenu();
 		ImGui::TreePop();
+		
 	}
 
 	if (plane->prefab && ImGui::TreeNode(plane->prefab, "Floor")) {
+		ImGui::Checkbox("Visible", &(plane->visible));
 		plane->prefab->root.renderInMenu();
 		ImGui::TreePop();
+
 	}
 
 	if (ImGui::TreeNode(directional, "Lights")) {

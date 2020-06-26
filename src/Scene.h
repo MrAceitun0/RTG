@@ -23,6 +23,7 @@ public:
 	bool showIrrText = false;
 	bool deferred = false;
 	bool show_reflections = false;
+	bool planar_reflection = false;
 	Vector4 bg_color;
 	Light* sun;
 	char render_type;
