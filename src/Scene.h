@@ -21,7 +21,7 @@ public:
 	bool probes = false;
 	bool ref_probes = false;
 	bool showIrrText = false;
-	bool deferred = false;
+	bool deferred = true;
 	bool show_reflections = false;
 	bool planar_reflection = false;
 	Vector4 bg_color;

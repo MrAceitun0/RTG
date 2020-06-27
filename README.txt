@@ -1,34 +1,53 @@
 Laura Beltrán 	NIA:194993 	laura.beltran02@estudiant.upf.edu
 Sergi Olives	NIA:193196	sergi.olives01@estudiant.upf.edu
 
-La escena contiene 13 point lights, 6 spot lights y una directional light.
-La directional, 2 point lights y una spotlight se pueden modificar directamente desde el debugger en realtime, el resto son estáticas.
-La luz directional genera sombras en la escena, aunque se puede activar y desactivar en real time, igual que con la spotlight.
+Gráficos en Tiempo Real - Entrega Práctica 3
+Esta práctica se construye sobre la práctica anterior de la asignatura donde se implementa una pipeline de render en modo deferred.
+Esta es una versión mejorada con otros algoritmos:
+*Se implementa el SSAO+ 
+*Se implementa irradiancia aunque no se visualiza en el render de iluminación (se puede comprovar que las probes de irradiancia funcionan correctamente y se puede visualizar la textura de irradiancia)
+*Se implementa un sistema de reflexiones dónde se pueden visualizar las probes de reflexión y como se aplican en el escenario
+*Se puede activar la opción de volumetric lighting para luz direccional
+*Se implementa un postprocesado de tonemapping
+*Sobre el prefab del coche, podemos encontrar un decal implementado
+*Se implementan parallax reflections (solo se ha conseguido implementar en forward y para un plano en el suelo)
+
+Contenido de la escena:
+	Prefab de un coche (gmc)
+	Prefab de una casa (brutalism)
+	Suelo de piedra / Suelo reflectante rojo (solo forward)
+	Agujeros de bala (decals)
+	Luz direccional
+	Spot light amarilla
 
 DEBUGGER
-1. Checkbox Show gBuffers: si está activo aparecen en pantalla los gbuffers
-de color, normal y depth.
-2. Checkbox Gamma: si está activo se aplica el gamma.
-3. Car: 
-	3.1 Checkbox Visible: para activar y desactivar el coche.
-	3.2 Dentro de los children de car hay el apartado material 
-	donde puedes regular roughness y metalness del PBR.
-4.Floor (lo mismo que en car)
-5.Lights:
-	5.1 Ambient: puedes cambiar el color de la ambient light
-	5.2 Directional Light:
-	Puedes rotar la luz, cambiar el color, ajustar el bias de la
-	sombra, ajustar la intensidad, activar o desactivar la luz y
-	activar o desactivar la sombra.
-	5.3 Point Light 1 y 2:
-	Puedes mover la luz, cambiar el color, ajustar la distancia máxima,
-	ajustar la intensidad y activar o desactivar la luz.
-	5.4 Spotlight:
-	Puedes rotar la luz,mover la luz, cambiar el color, ajustar el ángulo 
-	(cutoff) del cono de la luz, ajustar el exponente de la luz,ajustar la
-	distancia máxima, ajustar el bias de la sombra, ajustar la intensidad,
-	activar o desactivar la luz y activar o desactivar la sombra.
+1. Tipo de pipeline (Forward / Deferred)
+En Forward:
+	2. Planar reflection: activa un plano sobre el suelo que refleja lo que se encuentra sobre la escena, se pueden modificar las models de los prefabs para ver el efecto parallax
+En Deferred:
+	2. Show gbuffers: muestra algunos buffers usados para debugar la pipeline de deferred (color, normales, depth y ssao)
+	3. Checkbox Gamma: si está activo se aplica el gamma.
+	4. Blur SSAO: blurrea el buffer SSAO para aplicar SSAO+
+	5. SSAO bias
+	6. Computar irradiancia
+		6.1. Visualizar probes de irradiancia
+		6.2. Visualizar textura de irradiancia
+	7. Computar reflexiones de la escena
+		7.1 Mostrar probes con reflexiones
+		7.2 Aplicar reflexiones en la escena
+	8. Mostrar decals
+	9. Activar o desactivar tonemapper con sus parámetros modificables (scale, average lum, lum white, igamma)
+	10. Activar o desactivar volumetric lighting para luz direccional (se puede modificar el sample density)
+También se permite debuggar prefabs y luces de la escena:
+	*Camara
+	*Casa (contiene dos luces emisivas que se puede ver su efecto en deferred gracias a las probes de irradiancia)
+	*Coche
+	*Suelo de piedras
+	*Luz direccional
+	*Luz spot amarilla
 
 Otros:
-*Las Point Lights usan geometría de esferas para calcular la luz
-*Se aplica dithering a los objetos transparentes
+*Los algoritmos estan todos implementados en deferred, se añade la opción de forward al motor para las parallax reflections y porque lo usamos para debuggar, aunque no se han implementado algoritmos en esta pipeline de render (contiene errores a causa de modificaciones durant el proceso)
+*Parallax reflections solo se pueden activar en forward, no se ha conseguido implementar en deferred
+*Las reflexiones de las probes funcionan correctamente, aunque parece ser que hay errores arrastrados de la práctica anterior sobre pbr y provoca efectos extraños en el coche
+*La irradiancia no es aplicada a la última pasada de iluminación, aunque las probes se renderizan como se espera y las luces emisivas de la casa afectan a la irradiancia. Las probes y la textura de irradiance se ve como debería.

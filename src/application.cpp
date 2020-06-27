@@ -395,12 +395,12 @@ void Application::renderDebugGUI(void)
 	//System stats
 	ImGui::Text(getGPUStats().c_str());					   // Display some text (you can use a format strings too)
 
-	ImGui::Checkbox("Wireframe", &render_wireframe);
+	//ImGui::Checkbox("Wireframe", &render_wireframe);
 	
 	ImGui::Combo("Render", (int*)&Scene::scene->render_type, "FORWARD\0DEFERRED", 2);
 	if (Scene::scene->render_type == Scene::DEFERRED) {
 		Scene::scene->deferred = true;
-		ImGui::ColorEdit4("BG color", Scene::scene->bg_color.v);
+		//ImGui::ColorEdit4("BG color", Scene::scene->bg_color.v);
 		ImGui::Checkbox("Show gBuffers", &Scene::scene->gBuffers);
 		ImGui::Checkbox("Gamma", &Scene::scene->has_gamma);
 		ImGui::Checkbox("Blur SSAO", &renderer->ssao_blurring);
@@ -443,17 +443,7 @@ void Application::renderDebugGUI(void)
 	else {
 		Scene::scene->deferred = false;
 
-		if (ImGui::Button("Compute Reflection"))
-			renderer->computeReflection();
-
-		if (renderer->reflections_fbo) {
-			ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
-			//ImGui::Checkbox("Show Reflections", &Scene::scene->show_reflections);
-		}
-
 		ImGui::Checkbox("Planar Reflection", &(Scene::scene->planar_reflection));
-			
-		
 	}
 
 	//add info to the debug panel about the camera
@@ -501,7 +491,7 @@ void Application::renderDebugGUI(void)
 			ImGui::Checkbox("Shadows", &(directional->has_shadow));
 
 		}
-		if (ImGui::TreeNode(point, "Point Light 1")) {
+		/*if (ImGui::TreeNode(point, "Point Light 1")) {
 
 			ImGui::DragFloat3("Position", &(point->position.x), 0.1f);
 			ImGui::DragFloat3("Color", &(point->color.x), 0.1f, 0.0f, 1.0f);
@@ -517,7 +507,7 @@ void Application::renderDebugGUI(void)
 			ImGui::SliderFloat("Max Distance", &(point2->maxDist), 0.0f, 500.0f);
 			ImGui::SliderFloat("Intensity", &(point2->intensity), 0.0f, 10.f);
 			ImGui::Checkbox("visible", &(point2->visible));
-		}
+		}*/
 		if (ImGui::TreeNode(spot, "Yellow Spot Light")) {
 
 			float matrixTranslation[3], matrixRotation[3], matrixScale[3];
