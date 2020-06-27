@@ -158,7 +158,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	//Scene::scene->entities.push_back(spot6);
 	Scene::scene->sun = directional;
 	Scene::scene->entities.push_back(directional);
-	//Scene::scene->entities.push_back(point);
+	Scene::scene->entities.push_back(point);
 	//Scene::scene->entities.push_back(point2);
 	//Scene::scene->entities.push_back(point3);
 	//Scene::scene->entities.push_back(point4);
@@ -491,14 +491,14 @@ void Application::renderDebugGUI(void)
 			ImGui::Checkbox("Shadows", &(directional->has_shadow));
 
 		}
-		/*if (ImGui::TreeNode(point, "Point Light 1")) {
+		if (ImGui::TreeNode(point, "Point Light 1")) {
 
 			ImGui::DragFloat3("Position", &(point->position.x), 0.1f);
 			ImGui::DragFloat3("Color", &(point->color.x), 0.1f, 0.0f, 1.0f);
 			ImGui::SliderFloat("Max Distance", &(point->maxDist), 0.0f, 500.0f);
 			ImGui::SliderFloat("Intensity", &(point->intensity), 0.0f, 10.f);
 			ImGui::Checkbox("visible", &(point->visible));
-		}
+		}/*
 		if (ImGui::TreeNode(point2, "Point Light 2")) {
 
 
