@@ -296,21 +296,6 @@ void Renderer::renderDeferred(Camera* camera)
 	//send random points so we can fetch around
 	shader->setUniform3Array("u_points", (float*)&random_points[0], random_points.size());
 
-	//Irradiance information to shader
-	if (irr_fbo)
-	{
-		shader->setUniform("u_irradiance", 1);
-		shader->setUniform("u_probes_texture", irr_fbo->color_textures[0], 5);
-		shader->setUniform("u_irr_end", Vector3(180, 150, 80));
-		shader->setUniform("u_irr_start", Vector3(-55, 10, -170));
-		shader->setUniform("u_irr_normal_distance", 1.0f);
-		shader->setUniform("u_irr_delta", Vector3(180, 150, 80) - Vector3(-55, 10, -170));
-		shader->setUniform("u_irr_dims", Vector3(8, 6, 12));
-		shader->setUniform("u_num_probes", 576.0f);
-	}
-	else
-		shader->setUniform("u_irradiance", 0);
-
 	//render fullscreen quad
 	Mesh* ssao_quad = Mesh::getQuad();
 	ssao_quad->render(GL_TRIANGLES);
@@ -391,6 +376,22 @@ void Renderer::renderDeferred(Camera* camera)
 
 			//pass all the information about the light and ambient…
 			sh->setUniform("u_ambient_light", Scene::scene->ambient);
+			sh->setUniform("u_light_num", i);
+
+			//Irradiance information to shader
+			if (irr_fbo)
+			{
+				shader->setUniform("u_irradiance", true);
+				shader->setUniform("u_probes_texture", irr_fbo->color_textures[0], 7);
+				shader->setUniform("u_irr_end", Vector3(180, 150, 80));
+				shader->setUniform("u_irr_start", Vector3(-55, 10, -170));
+				shader->setUniform("u_irr_normal_distance", normalDistance);
+				shader->setUniform("u_irr_delta", Vector3(180, 150, 80) - Vector3(-55, 10, -170));
+				shader->setUniform("u_irr_dims", Vector3(8, 6, 12));
+				shader->setUniform("u_num_probes", 576.0f);
+			}
+			else
+				shader->setUniform("u_irradiance", 0);
 
 			light_vector[i]->setUniforms(sh);
 			if (light_vector[i]->has_shadow) {
@@ -447,6 +448,22 @@ void Renderer::renderDeferred(Camera* camera)
 
 			//pass all the information about the light and ambient…
 			sh->setUniform("u_ambient_light", Scene::scene->ambient);
+			sh->setUniform("u_light_num", i);
+
+			//Irradiance information to shader
+			if (irr_fbo)
+			{
+				shader->setUniform("u_irradiance", true);
+				shader->setUniform("u_probes_texture", irr_fbo->color_textures[0], 7);
+				shader->setUniform("u_irr_end", Vector3(180, 150, 80));
+				shader->setUniform("u_irr_start", Vector3(-55, 10, -170));
+				shader->setUniform("u_irr_normal_distance", normalDistance);
+				shader->setUniform("u_irr_delta", Vector3(180, 150, 80) - Vector3(-55, 10, -170));
+				shader->setUniform("u_irr_dims", Vector3(8, 6, 12));
+				shader->setUniform("u_num_probes", 576.0f);
+			}
+			else
+				shader->setUniform("u_irradiance", 0);
 
 			//basic.vs will need the model and the viewproj of the camera
 			sh->setUniform("u_viewprojection", camera->viewprojection_matrix);
@@ -502,8 +519,7 @@ void Renderer::renderDeferred(Camera* camera)
 		ssao_fbo->color_textures[0]->toViewport();
 		
 		glViewport(w*0.5, h*0.5, w*0.5, h*0.5);
-		//gbuffers_fbo->depth_texture->toViewport(shader_depth);
-		planar_reflection_fbo->color_textures[0]->toViewport();
+		gbuffers_fbo->depth_texture->toViewport(shader_depth);
 
 		glViewport(0, 0, w, h);
 	}

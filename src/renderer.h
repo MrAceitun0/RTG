@@ -47,6 +47,7 @@ namespace GTR {
 
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
+		float normalDistance = 1.0f;
 		std::vector<sReflectionProbe*> reflection_probes;
 		bool first = true;
 		

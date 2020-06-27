@@ -176,7 +176,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	camera = new Camera();
 	camera->lookAt(Vector3(-1000.f, 700.0f, -700.f), Vector3(0.f, 0.0f, 0.f), Vector3(0.f, 1.f, 0.f));
 	camera->setPerspective( 45.f, window_width/(float)window_height, 1.0f, 10000.f);
-
+	
 	//This class will be the one in charge of rendering all 
 	renderer = new GTR::Renderer(); //here so we have opengl ready in constructor
 	renderer->random_points = renderer->generateSpherePoints(64, 1.0f, true);
@@ -412,6 +412,7 @@ void Application::renderDebugGUI(void)
 		if (renderer->irr_fbo) {
 			ImGui::Checkbox("Irradiance Probes", &Scene::scene->probes);
 			ImGui::Checkbox("Show Irradiance Texture", &Scene::scene->showIrrText);
+			ImGui::DragFloat("Normal Distance", &renderer->normalDistance, 0.1f, 0.0f, 10.0f);
 		}
 
 		//REFLECTION
