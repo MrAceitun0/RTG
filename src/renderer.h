@@ -44,6 +44,9 @@ namespace GTR {
 		//FBO* final_fbo;
 		FBO* volumetric_fbo;
 		FBO* planar_reflection_fbo;
+		Texture* temp_depth_texture;
+
+		Mesh* cube;
 
 		std::vector<Vector3> random_points;
 		std::vector<sProbe> probes;
@@ -51,6 +54,7 @@ namespace GTR {
 		std::vector<sReflectionProbe*> reflection_probes;
 		bool first = true;
 		
+		bool decals = true;
 		bool volumetric = false;
 		float sampledensity = 0.02f;
 

@@ -86,7 +86,7 @@ Application::Application(int window_width, int window_height, SDL_Window* window
 	house->prefab->root.children[1]->material->metallic_factor = 0.0f;
 	house->prefab->root.children[1]->material->roughness_factor = 0.1f;
 
-
+	
 	point = new Light(Vector3(1, 0, 0), light_type::POINT_L, true, 0, Vector3(50, 100, 400), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
 	point->intensity = 2;
 	point2 = new Light(Vector3(0, 1, 0), light_type::POINT_L, true, 0, Vector3(0, 100, 350), 500); //{DIRECTIONAL, SPOT, POINT} 0,1,2
@@ -423,6 +423,8 @@ void Application::renderDebugGUI(void)
 			ImGui::Checkbox("Reflection Probes", &Scene::scene->ref_probes);
 			ImGui::Checkbox("Show Reflections", &Scene::scene->show_reflections);
 		}
+
+		ImGui::Checkbox("Decals (top car bullet shots)", &renderer->decals);
 
 		//TONEMAPPER
 		ImGui::Checkbox("Tonemapper", &renderer->use_fx);

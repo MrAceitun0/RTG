@@ -29,6 +29,10 @@ Renderer::Renderer()
 	volumetric_fbo = NULL;
 	environment1 = NULL;
 	planar_reflection_fbo = NULL;
+	temp_depth_texture = NULL;
+
+	cube = new Mesh();
+	cube->createCube();
 }
 
 std::vector<Vector3> Renderer::generateSpherePoints(int num, float radius, bool hemi)
@@ -243,6 +247,46 @@ void Renderer::renderDeferred(Camera* camera)
 	//stop rendering to the gbuffers
 	gbuffers_fbo->unbind();
 
+	//send info to reconstruct the world position
+	Matrix44 inv_vp = camera->viewprojection_matrix;
+	inv_vp.inverse();
+
+	//Decals
+	if (decals)
+	{
+		if (!temp_depth_texture)
+			temp_depth_texture = new Texture(gbuffers_fbo->depth_texture->width, gbuffers_fbo->depth_texture->height, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, false);
+
+		temp_depth_texture = gbuffers_fbo->depth_texture;
+
+		gbuffers_fbo->bind();
+
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glEnable(GL_BLEND);
+
+		Matrix44 m;
+		m.setTranslation(-200, -3, 50);
+		m.scale(20, 30, 20);
+		Matrix44 im;
+		im = m;
+		im.inverse();
+
+		Shader* sh = Shader::Get("decal");
+		sh->enable();
+		sh->setUniform("u_camera_position", camera->eye);
+		sh->setUniform("u_texture", Texture::Get("data/textures/bulletholes.png"), 0);
+		sh->setUniform("u_inverse_viewprojection", inv_vp);
+		sh->setUniform("u_viewprojection", camera->viewprojection_matrix);
+		sh->setUniform("u_depth_texture", temp_depth_texture, 1);
+		sh->setUniform("u_model", m);
+		sh->setUniform("u_imodel", im);
+		sh->setUniform("u_iRes", Vector2(1.0 / (float)gbuffers_fbo->depth_texture->width, 1.0 / (float)gbuffers_fbo->depth_texture->height));
+		cube->render(GL_TRIANGLES);
+
+		gbuffers_fbo->unbind();
+	}
+
 	//SCREEN SPACE AMBIENT OCCLUSION
 	if (!ssao_fbo)
 	{
@@ -271,10 +315,6 @@ void Renderer::renderDeferred(Camera* camera)
 	//get the shader for SSAO (remember to create it using the atlas)
 	Shader* shader = Shader::Get("ssao");
 	shader->enable();
-
-	//send info to reconstruct the world position
-	Matrix44 inv_vp = camera->viewprojection_matrix;
-	inv_vp.inverse();
 
 	//bind the texture we want to change
 	gbuffers_fbo->depth_texture->bind();
