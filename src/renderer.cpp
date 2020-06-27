@@ -284,7 +284,7 @@ void Renderer::renderDeferred(Camera* camera)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	gbuffers_fbo->depth_texture->unbind();
 
-	shader->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 0);
+	shader->setUniform("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
 	shader->setUniform("u_inverse_viewprojection", inv_vp);
 	shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 1);
 	//we need the pixel size so we can center the samples 
@@ -602,8 +602,8 @@ void Renderer::renderDeferred(Camera* camera)
 			shader->setUniform("u_inverse_viewprojection", inv_vp);
 			shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 			shader->setTexture("u_color_texture", gbuffers_fbo->color_textures[0], 0);
-			shader->setTexture("u_normal_texture", gbuffers_fbo->color_textures[1], 0);
-			shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 1);
+			shader->setTexture("u_normal_texture", gbuffers_fbo->color_textures[1], 1);
+			shader->setTexture("u_depth_texture", gbuffers_fbo->depth_texture, 2);
 			shader->setUniform("u_iRes", Vector2(1.0 / (float)gbuffers_fbo->depth_texture->width, 1.0 / (float)gbuffers_fbo->depth_texture->height));
 			shader->setUniform("u_camera_position", camera->eye);
 
@@ -1031,13 +1031,12 @@ void GTR::Renderer::computeReflection()
 		reflections_fbo = new FBO();
 
 	
-	for (int z = 0;z < 3;z++) 
-		for (int x = 0;x < 3;x++) {
+	for (int z = 0;z < 4;z++) 
+		for (int x = 0;x < 5;x++) {
 			//create the probe
 			sReflectionProbe* probe = new sReflectionProbe;
-			sReflectionProbe* probe2 = new sReflectionProbe;
 			//set it up
-			probe->pos.set(x*150, 100, -z*150);
+			probe->pos.set(-200 + x*150, 100, 100 -z*150);
 			probe->cubemap = new Texture();
 			probe->cubemap->createCubemap(512, 512,	NULL,GL_RGB, GL_UNSIGNED_INT, false);
 			//add it to the list

@@ -1076,7 +1076,8 @@ void main()
 	vec3 worldpos = proj_worldpos.xyz / proj_worldpos.w;
 
 	float metalness = normal.a;
-	float roughness = color.a;
+	float metalness = normal.w;
+	float roughness = color.w;
 
 	vec3 V = normalize( u_camera_position - worldpos );
 	vec3 R = reflect( V, N );
